@@ -2,7 +2,6 @@ from fastapi import FastAPI
 from src.api.routers import health
 import os
 from src.core.config import settings
-from src.security_admin import SecurityAdmin
 
 
 # Create FastAPI app with custom configuration
@@ -23,23 +22,23 @@ app = FastAPI(
 )
 
 
-# Health endpoint
-app.include_router(health.router, prefix="/api/v1")
+# Health endpoint - Registered first
+app.include_router(health.router, prefix="/api/v1/admin")
 
-# Main admin router with all catalog management endpoints
-from src.api.admin_api import api_admin_router
-app.include_router(api_admin_router, prefix=f"/{settings.API_V1_STR}/admin", tags=["Admin"])
+# Main admin router with all catalog management endpoints  
+from src.routers.admin_api import api_admin_router
+app.include_router(api_admin_router, tags=["Admin"])
 
 
 @app.get("/")
-async def root(request):
+async def root():
     """Root endpoint - API information."""
-    from fastapi.requests import Request
     return {
         "message": f"Welcome to {settings.PROJECT_NAME} API",
         "version": settings.VERSION,
         "docs_url": "/docs",
-        "openapi_url": "/openapi.json"
+        "openapi_url": "/openapi.json",
+        "environment": "production" if not os.getenv("DEBUG") else "development"
     }
 
 
@@ -60,52 +59,14 @@ app.add_middleware(
 )
 
 
-# Configure security headers middleware (production-ready)
-from starlette.middleware.https import HTTPSRedirectMiddleware
-
-
-class SecurityHeadersMiddleware:
-    """Add security headers to all responses."""
-    
-    def __init__(self, app):
-        self.app = app
-    
-    async def __call__(self, scope, receiver):
-        import asyncio
-        import httpx
-        response_headers = dict(receiver.headers)
-        
-        # Security headers
-        if "Content-Security-Policy" not in response_headers:
-            response_headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'"
-        
-        if "X-Frame-Options" not in response_headers:
-            response_headers["X-Frame-Options"] = "SAMEORIGIN"
-        
-        if "X-XSS-Protection" not in response_headers:
-            response_headers["X-XSS-Protection"] = "1; mode=block"
-        
-        app_response = await self.app(scope)
-        if scope["type"] == "http":
-            response = httpx.Response(scope["method"], 200, headers=response_headers)
-        
-        return [app_response]
-
-
-# Apply security middleware (production-ready)
-# app.add_middleware(SecurityHeadersMiddleware)
-
-
 @app.on_event("startup")
 async def startup_event():
     """Run on app startup."""
-    print(f"✓ {settings.PROJECT_NAME} API starting...")
-    print(f"  Version: {settings.VERSION}")
-    print(f"  API Prefix: /{settings.API_V1_STR}/admin")
+    from fastapi import FastAPI
+    app.logger.info(f"{settings.PROJECT_NAME} API starting version {settings.VERSION}")
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Run on app shutdown."""
-    print("✓ Shutting down GymTracker API...")
-
+    app.logger.info("Shutting down GymTracker API...")
