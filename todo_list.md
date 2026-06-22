@@ -83,14 +83,13 @@
 - [x] `docker-compose.yml` com PostgreSQL 16 + healthcheck
 - [x] `docker-compose.dev.yml` para dev com SQLite + volume
 
-### 15. Código (pendente)
-- [ ] Logging configurado (atualmente usa `app.logger` sem config)
-- [ ] Error handlers globais (app-level) para 404, 422, 500
-- [ ] Middleware CORS com origens dinâmicas via config
+### 15. Código
+- [x] Logging configurado (`src/core/logging.py`) com nível via `LOG_LEVEL`
+- [x] Error handlers globais (app-level) para HTTPException, ValidationError, Exception
+- [x] Middleware CORS com origens dinâmicas via `CORS_ORIGINS` no config
 
 ### 16. Documentação
-- [ ] README.md com instruções de setup (dev/prod)
-- [ ] Endpoints listados no README
+- [x] README.md com instruções de setup (dev/prod), variáveis de ambiente, endpoints listados
 
 ---
 
