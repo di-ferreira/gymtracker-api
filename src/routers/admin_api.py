@@ -11,7 +11,6 @@ from src.core.dependencies import get_token_data
 admin_router = APIRouter(
     prefix="/catalog",
     tags=["Catalog Management"],
-    dependencies=[Security(get_token_data)],
 )
 
 
@@ -35,7 +34,15 @@ async def admin_health_check(db: AsyncSession = Depends(get_db)):
     }
 
 
-admin_router.include_router(exercises_router)
-admin_router.include_router(equipment_router)
-admin_router.include_router(movement_group_router)
-admin_router.include_router(muscle_group_router)
+admin_router.include_router(
+    exercises_router, dependencies=[Security(get_token_data)]
+)
+admin_router.include_router(
+    equipment_router, dependencies=[Security(get_token_data)]
+)
+admin_router.include_router(
+    movement_group_router, dependencies=[Security(get_token_data)]
+)
+admin_router.include_router(
+    muscle_group_router, dependencies=[Security(get_token_data)]
+)

@@ -30,9 +30,6 @@ app = FastAPI(
     swagger_ui_parameters={"persistAuthorization": True},
 )
 
-from src.core.dependencies import bearer_scheme
-
-
 def custom_openapi():
     if app.openapi_schema:
         return app.openapi_schema
