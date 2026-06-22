@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Security
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.routers.exercises import router as exercises_router
@@ -11,7 +11,7 @@ from src.core.dependencies import get_token_data
 admin_router = APIRouter(
     prefix="/catalog",
     tags=["Catalog Management"],
-    dependencies=[Depends(get_token_data)],
+    dependencies=[Security(get_token_data)],
 )
 
 

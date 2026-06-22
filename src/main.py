@@ -11,6 +11,8 @@ from src.core.logging import setup_logging
 setup_logging()
 logger = logging.getLogger(__name__)
 
+from src.core.dependencies import bearer_scheme
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
@@ -25,7 +27,29 @@ app = FastAPI(
         "name": "GymTracker Team",
         "email": "support@gymtracker.com",
     },
+    swagger_ui_parameters={"persistAuthorization": True},
 )
+
+from src.core.dependencies import bearer_scheme
+
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    schema = app._original_openapi()
+    schema.setdefault("components", {})["securitySchemes"] = {
+        "BearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+        }
+    }
+    app.openapi_schema = schema
+    return schema
+
+
+app._original_openapi = app.openapi
+app.openapi = custom_openapi
 
 
 # === Global Error Handlers ===
