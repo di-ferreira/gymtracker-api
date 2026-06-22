@@ -5,11 +5,12 @@ Exercise catalog API with muscle groups, movement patterns, equipment, and exerc
 ## Stack
 
 - **Framework:** FastAPI
-- **ORM:** SQLAlchemy 2.0 (async)
+- **ORM:** SQLAlchemy 2.0 (async, `Mapped` + `mapped_column`)
 - **Database:** PostgreSQL (prod) / SQLite (dev)
 - **Migrations:** Alembic
 - **Auth:** JWT (PyJWT) + bcrypt
-- **Tests:** pytest + pytest-asyncio + httpx (37 tests)
+- **Storage:** Local (dev, `aiofiles`) / S3-compatible (prod, `boto3`)
+- **Tests:** pytest + pytest-asyncio + httpx (57 tests)
 
 ## Quick Start (Dev)
 
@@ -43,11 +44,15 @@ pytest tests/ -v --asyncio-mode=auto
 PYTHONPATH=. python3 scripts/seed.py
 ```
 
+Creates admin user `admin@gymtracker.com` / `admin123` + 40 exercises.
+
 ## Docker (Production)
 
 ```bash
 docker compose up --build
 ```
+
+Includes PostgreSQL + MinIO (S3-compatible storage) + API.
 
 ## Docker (Dev with hot reload)
 
@@ -66,13 +71,21 @@ docker compose -f docker-compose.dev.yml up --build
 | `LOG_LEVEL` | `INFO` | Logging level |
 | `DB_ECHO` | `false` | SQLAlchemy echo mode |
 | `DEBUG` | `false` | Debug mode |
+| `STORAGE_BACKEND` | `local` | `local` or `s3` |
+| `MEDIA_DIR` | `media` | Directory for local file storage |
+| `MEDIA_BASE_URL` | `http://localhost:8001/media` | Public base URL for media files |
+| `MAX_UPLOAD_SIZE_MB` | `10` | Max upload file size |
+| `S3_BUCKET` | `gymtracker-media` | S3/MinIO bucket name |
+| `S3_ENDPOINT` | — | S3 endpoint URL (e.g. `http://minio:9000`) |
+| `S3_ACCESS_KEY` | — | S3 access key |
+| `S3_SECRET_KEY` | — | S3 secret key |
 
 ## Access Control
 
 | Role | Permissions |
 |---|---|
 | `user` (default) | Register, login, view own profile, list public catalog |
-| `admin` | Full CRUD on catalog, manage users (list, promote, deactivate) |
+| `admin` | Full CRUD on catalog, manage users (list, promote, deactivate), upload media |
 
 Default admin seed: `admin@gymtracker.com` / `admin123` (created by `scripts/seed.py`).
 
@@ -94,6 +107,13 @@ Default admin seed: `admin@gymtracker.com` / `admin123` (created by `scripts/see
 | GET | `/users/` | List all users (paginated: `?skip=0&limit=100`) |
 | PATCH | `/users/{id}` | Update user role/name/is_active |
 
+### Media (`/api/v1/admin/media`) — admin only
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/media/upload?folder=exercises` | Upload file (jpg, png, gif, mp4, webm; max 10MB) |
+| DELETE | `/media/{folder}/{filename}` | Delete uploaded file |
+
 ### Public Catalog (`/api/v1/catalog`) — any authenticated user
 
 | Method | Path | Description |
@@ -107,26 +127,39 @@ Default admin seed: `admin@gymtracker.com` / `admin123` (created by `scripts/see
 
 | Method | Path | Description |
 |---|---|---|
-| POST | `/catalog/muscle-groups/` | Create muscle group |
-| GET | `/catalog/muscle-groups/` | List muscle groups |
-| GET | `/catalog/muscle-groups/{id}` | Get muscle group |
-| PATCH | `/catalog/muscle-groups/{id}` | Update muscle group |
-| DELETE | `/catalog/muscle-groups/{id}` | Delete muscle group |
-| POST | `/catalog/movement-groups/` | Create movement group |
-| GET | `/catalog/movement-groups/` | List movement groups |
-| GET | `/catalog/movement-groups/{id}` | Get movement group |
-| PATCH | `/catalog/movement-groups/{id}` | Update movement group |
-| DELETE | `/catalog/movement-groups/{id}` | Delete movement group |
-| POST | `/catalog/equipment/` | Create equipment |
-| GET | `/catalog/equipment/` | List equipment |
-| GET | `/catalog/equipment/{id}` | Get equipment |
-| PATCH | `/catalog/equipment/{id}` | Update equipment |
-| DELETE | `/catalog/equipment/{id}` | Delete equipment |
-| POST | `/catalog/exercises/` | Create exercise |
-| GET | `/catalog/exercises/` | List exercises |
-| GET | `/catalog/exercises/{id}` | Get exercise |
-| PATCH | `/catalog/exercises/{id}` | Update exercise |
-| DELETE | `/catalog/exercises/{id}` | Delete exercise |
+| `Muscle Groups` | | |
+| POST | `/catalog/muscle-groups/` | Create |
+| GET | `/catalog/muscle-groups/` | List |
+| GET | `/catalog/muscle-groups/{id}` | Get by ID |
+| PATCH | `/catalog/muscle-groups/{id}` | Update |
+| DELETE | `/catalog/muscle-groups/{id}` | Delete |
+| `Movement Groups` | | |
+| POST | `/catalog/movement-groups/` | Create |
+| GET | `/catalog/movement-groups/` | List |
+| GET | `/catalog/movement-groups/{id}` | Get by ID |
+| PATCH | `/catalog/movement-groups/{id}` | Update |
+| DELETE | `/catalog/movement-groups/{id}` | Delete |
+| `Equipment` | | |
+| POST | `/catalog/equipment/` | Create |
+| GET | `/catalog/equipment/` | List |
+| GET | `/catalog/equipment/{id}` | Get by ID |
+| PATCH | `/catalog/equipment/{id}` | Update |
+| DELETE | `/catalog/equipment/{id}` | Delete |
+| `Exercises` | | |
+| POST | `/catalog/exercises/` | Create |
+| GET | `/catalog/exercises/` | List (supports pagination, search, filters) |
+| GET | `/catalog/exercises/{id}` | Get by ID |
+| PATCH | `/catalog/exercises/{id}` | Update |
+| DELETE | `/catalog/exercises/{id}` | Soft delete |
+| `Exercise Instructions` | | |
+| GET | `/catalog/exercises/{id}/instructions/` | List instructions |
+| POST | `/catalog/exercises/{id}/instructions/` | Add instruction |
+| PATCH | `/catalog/exercises/{id}/instructions/{instr_id}` | Update instruction |
+| DELETE | `/catalog/exercises/{id}/instructions/{instr_id}` | Remove instruction |
+| `Exercise Alternatives` | | |
+| GET | `/catalog/exercises/{id}/alternatives/` | List alternatives |
+| POST | `/catalog/exercises/{id}/alternatives/` | Add alternative |
+| DELETE | `/catalog/exercises/{id}/alternatives/{alt_id}` | Remove alternative |
 
 ### Health
 
@@ -141,16 +174,36 @@ Default admin seed: `admin@gymtracker.com` / `admin123` (created by `scripts/see
 |---|---|---|
 | GET | `/` | API info |
 
+## Error Format
+
+All errors return a consistent structure:
+
+```json
+{
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Exercise not found"
+  }
+}
+```
+
+Possible codes: `NOT_FOUND`, `CONFLICT`, `UNAUTHORIZED`, `FORBIDDEN`, `BAD_REQUEST`, `VALIDATION_ERROR`, `FILE_TOO_LARGE`, `INTERNAL_ERROR`.
+
 ## Project Structure
 
 ```
 src/
-├── core/           # Config, logging
-├── database/       # Session, Base, migrations
-├── models/         # SQLAlchemy ORM models
+├── core/           # Config, logging, error helpers, auth dependencies
+├── database/       # Session, Base, Alembic migrations
+├── models/         # SQLAlchemy ORM models (Mapped + mapped_column)
 ├── schemas/        # Pydantic request/response schemas
 ├── repositories/   # Data access layer
 ├── services/       # Business logic
 ├── routers/        # FastAPI route handlers
+├── storage/        # Storage abstraction (local + S3 backends)
 └── main.py         # App entrypoint
 ```
+
+## TypeScript Types
+
+See `types.md` for TypeScript interfaces matching all API responses.
