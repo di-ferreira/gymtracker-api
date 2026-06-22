@@ -24,6 +24,19 @@ class Settings(BaseSettings):
     # CORS
     CORS_ORIGINS: str = "http://localhost:3000"
 
+    # Storage
+    STORAGE_BACKEND: str = "local"
+    MEDIA_DIR: str = "media"
+    MEDIA_BASE_URL: str = "http://localhost:8001/media"
+    MAX_UPLOAD_SIZE_MB: int = 10
+
+    # S3 (usado apenas quando STORAGE_BACKEND=s3)
+    S3_BUCKET: str = "gymtracker-media"
+    S3_REGION: str = "us-east-1"
+    S3_ENDPOINT: str = ""
+    S3_ACCESS_KEY: str = ""
+    S3_SECRET_KEY: str = ""
+
     @property
     def database_url(self) -> str:
         if self.ENVIRONMENT == "development":

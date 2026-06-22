@@ -1,7 +1,9 @@
+import os
 import logging
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from pydantic import ValidationError
 
@@ -83,6 +85,16 @@ app.include_router(admin_users_router, prefix="/api/v1/admin", tags=["Admin - Us
 
 from src.routers.public_api import router as public_router
 app.include_router(public_router, prefix="/api/v1", tags=["Public Catalog"])
+
+from src.routers.media import router as media_router
+app.include_router(media_router, prefix="/api/v1/admin", tags=["Admin - Media"])
+
+
+# === Static Files (local dev) ===
+
+if settings.STORAGE_BACKEND == "local":
+    os.makedirs(settings.MEDIA_DIR, exist_ok=True)
+    app.mount("/media", StaticFiles(directory=settings.MEDIA_DIR), name="media")
 
 
 # === Root ===
