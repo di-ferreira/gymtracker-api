@@ -1,15 +1,34 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 
+
 class Settings(BaseSettings):
     PROJECT_NAME: str = "GymTracker API"
     VERSION: str = "0.1.0"
     API_V1_STR: str = "/api/v1"
-    
+
+    # Environment
+    ENVIRONMENT: str = "development"
+    DEBUG: bool = False
+
     # Database
-    DATABASE_URL: str = "postgresql://postgres:postgres_password@db:5432/gymtracker"
+    DATABASE_URL: str = "sqlite+aiosqlite:///./gymtracker.db"
     DB_ECHO: bool = False
-    
+
+    @property
+    def database_url(self) -> str:
+        if self.ENVIRONMENT == "development":
+            return self.DATABASE_URL
+        url = self.DATABASE_URL
+        if url.startswith("postgresql://") and "+asyncpg" not in url:
+            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return url
+
+    @property
+    def is_sqlite(self) -> bool:
+        return "sqlite" in self.database_url
+
     model_config = SettingsConfigDict(env_file=".env")
+
 
 settings = Settings()

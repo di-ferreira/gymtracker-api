@@ -1,84 +1,110 @@
-# Pending Items for GymTracker API Implementation
+# GymTracker API - Todo List
 
-Based on AGENT.md requirements and current state:
-
-## 🔴 Critical - Must Complete
-
-### 1. Repository Layer (Complete CRUD)
-- [ ] Create comprehensive `ExerciseRepository` with full pagination support
-- [ ] Create `EquipmentRepository` 
-- [ ] Update existing `MuscleGroupRepository` to match new pattern
-- [ ] Create `MovementGroupRepository`
-- [ ] Create junction table repository for Exercise-Equipment relationships
-
-### 2. Service Layer (Complete Business Logic)
-- [ ] Complete `ExerciseService.create()` with validation
-- [ ] Implement proper search/filtering logic in exercises service
-- [ ] Add catalog sync endpoints for version management
-- [ ] Implement soft delete operations
-
-### 3. API Admin Router
-- [ ] Create admin authentication middleware (JWT/OAuth2 integration)
-- [ ] Update main.py to include all routers correctly
-- [ ] Register `/api/v1/admin` routes with proper prefix handling
-- [ ] Security headers enforcement on ALL responses
-
-## 🟡 Important - Should Complete
-
-### 4. Database Migrations (Alembic Setup)
-- [ ] Initialize Alembic migrations: `alembic init alembic/`
-- [ ] Create revision for exercise models: `alembic revision --autogenerate -m "Add exercises and supporting tables"`
-- [ ] Test migration in development environment
-
-### 5. API Endpoint Integration
-- [ ] Update `src/api/admin_api.py` with proper router imports
-- [ ] Register all routers in `src/main.py`:
-  - `/api/v1/admin/catalog/exercises/*`
-  - `/api/v1/admin/catalog/equipment/*`
-  - `/api/v1/admin/catalog/movement-groups/*`
-  - `/api/v1/admin/catalog/muscle-groups/*`
-
-### 6. Schemas Enhancement
-- [ ] Add nested response schemas showing related data
-    - ExerciseResponse with muscle_group, movement_group embedded
-  - Pagination metadata in all list endpoints
-  
-### 7. Error Handling
-- [ ] Add comprehensive exception handlers for:
-  - HTTPException (404/422/500)
-  - ValidationError
-  - AuthenticationError  
-    - AuthorizationError
-
-## 🟢 Nice-to-Have - Optional
-
-### 8. Testing Infrastructure
-- [ ] Setup pytest with async support (`pytest.ini`)
-- [ ] Create test fixtures for all entities
-- [ ] Write integration tests for CRUD operations
-
-### 9. Production Configuration
-- [ ] Environment variables file (`.env.example`)
-  - DATABASE_URL configuration
-  - JWT_SECRET_KEY  
-  - DEBUG=false
-- [ ] Dockerfile for production deployment
-
-### 10. Documentation
-- [ ] README.md with API endpoints reference
-- [ ] OpenAPI/Swagger documentation verification
-- [ ] Endpoint examples (curl/HTTPie format)
+> Status: **✅ Rodando** — `uvicorn src.main:app --reload --port 8001` funciona com SQLite em dev.
+> 22 endpoints ativos em `/api/v1/admin/catalog/`, `/api/v1/admin/health`, `/`.
 
 ---
 
-## Summary: 3 Main Steps to Completion
+## ✅ Concluído
 
-**Priority Order:**
-1. **Repository Layer** - Create all repository implementations ✅
-2. **Service Layer** - Complete business logic with validation 🔄
-3. **API Integration** - Register routes in main.py 🔗
+### 1. Config: Suporte a SQLite (dev) / PostgreSQL (prod)
+- `aiosqlite` adicionado nas dependências
+- `src/core/config.py` lê `ENVIRONMENT` do `.env`, `database_url` property, `is_sqlite` property
+- `src/database/session.py`: engine correto por tipo de banco, `get_db()` única
+- `.env` (dev) criado: `ENVIRONMENT=development`, `DATABASE_URL=sqlite+aiosqlite:///./gymtracker.db`
 
-Once these 3 steps are complete, the API will be functional at:
-- `GET http://localhost:8000/api/v1/admin/catalog/exercises`
-- `POST http://localhost:8000/api/v1/admin/catalog/exercises`
-- All other CRUD endpoints
+### 2. Modelos: Compatibilidade com SQLite
+- `PG_UUID` substituído por `Uuid` genérico do SQLAlchemy
+- `server_default="gen_random_uuid()"` substituído por `default=uuid.uuid4`
+- Enums PostgreSQL (`DifficultyLevel`, `MediaUrlType`) convertidos para Python `enum.Enum` com `sqlalchemy.Enum`
+- Forward reference em `Exercise.instructions` corrigido
+- `SoftDeleteMixin` adicionado ao modelo `Equipment`
+
+### 3. Schemas corrigidos
+- `BaseExerciseBase` → `ExerciseBase` em todos os schemas do `exercise.py`
+- `CatalogVersionResponse` não necessário (router `catalog.py` não importa schema)
+
+### 4. Repositories
+- `src/repositories/exercise_repository.py` reescrito com imports corretos, paginação, filtros, search, equipment management
+
+### 5. Services
+- Todos os services corrigidos: imports de schemas corretos, métodos `list`/`list_all` padronizados
+
+### 6. Routers
+- Todos os routers com imports corretos de `src.schemas.catalog` e `src.schemas.exercise`
+- `src/routers/admin.py` removido (exception handlers em router não funcionam)
+- `src/routers/catalog.py` simplificado (sem imports quebrados)
+
+### 7. Rotas registradas em `main.py`
+- Todos os routers registrados sob `/api/v1/admin/catalog/` + health em `/api/v1/admin/health`
+- `src/api/` removido (estrutura consolidada em `src/routers/`)
+
+### 8. Alembic
+- `alembic.ini` configurado apontando para `src/database/migrations/env.py`
+- Migration inicial criada e aplicada (9 tabelas)
+
+### 9. Dependências
+- `aiosqlite`, `bcrypt`, `pydantic-settings` instalados
+
+### 10. Schemas duplicados
+- `src/schemas/muscle_group.py` removido (todos usam `src/schemas/catalog.py`)
+
+### 11. `src/api/` vs `src/routers/`
+- `src/api/` removido — estrutura consolidada em `src/routers/`
+
+### 14. Infraestrutura
+- `.gitignore`: `*.db`, `__pycache__`, `.env` adicionados
+
+---
+
+## 🟡 Próximas tarefas
+
+### 12. Testes
+- [ ] Completar `tests/test_exercises.py` (atualmente vazio)
+- [ ] Corrigir fixtures assíncronas em `conftest.py`
+- [ ] Adicionar `TestClient` fixture para testes de integração
+- [ ] Criar database test session com SQLite in-memory
+
+### 13. Autenticação
+- [ ] Implementar JWT ou manter stub para dev
+- [ ] Adicionar `python-jose` ou `pyjwt` nas dependências se for usar JWT
+
+---
+
+## 🟢 Melhorias - Nice-to-have
+
+### 14. Infraestrutura (restante)
+- [ ] Healthcheck real que testa conexão com banco
+- [ ] Script de seed para popular dados de teste
+- [ ] Dockerfile: copiar `requirements.txt` e ajustar instalação
+- [ ] docker-compose: adicionar volume para código em dev (hot reload)
+
+### 15. Código
+- [ ] Logging configurado (atualmente usa `app.logger` sem config)
+- [ ] Error handlers globais (app-level) para 404, 422, 500
+- [ ] Middleware CORS com origens dinâmicas via config
+- [ ] Rate limiting (placeholder removido junto com `admin.py`)
+
+### 16. Documentação
+- [ ] README.md com instruções de setup (dev/prod)
+- [ ] Endpoints listados no README
+
+---
+
+## Fluxo de Setup (Dev)
+
+```bash
+# 1. Instalar dependências
+pip install -r requirements.txt
+
+# 2. Criar .env
+cp .env.example .env
+# Editar .env: ENVIRONMENT=development
+# DATABASE_URL=sqlite+aiosqlite:///./gymtracker.db
+
+# 3. Rodar migrations
+alembic upgrade head
+
+# 4. Iniciar servidor
+uvicorn src.main:app --reload --port 8001
+```

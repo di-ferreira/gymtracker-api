@@ -1,14 +1,14 @@
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.repositories.muscle_group_repository import MuscleGroupRepository
-from src.schemas.muscle_group import MuscleGroupCreate, MuscleGroupUpdate, MuscleGroupResponse
+from src.schemas.catalog import MuscleGroupCreate, MuscleGroupUpdate, MuscleGroupResponse
+
 
 class MuscleGroupService:
     def __init__(self, session: AsyncSession):
         self.repository = MuscleGroupRepository(session)
 
     async def create_muscle_group(self, data: MuscleGroupCreate) -> MuscleGroupResponse:
-        # Business rules could go here (e.g. check if slug already exists)
         db_obj = await self.repository.create(data)
         return MuscleGroupResponse.model_validate(db_obj)
 

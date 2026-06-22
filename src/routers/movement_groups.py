@@ -1,11 +1,10 @@
-"""Movement Group Router for gym catalog management."""
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from uuid import UUID
+from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.session import get_db
 from src.services.movement_group_service import MovementGroupService
-from src.models.exercise import MovementGroupResponse
+from src.schemas.catalog import MovementGroupCreate, MovementGroupUpdate, MovementGroupResponse
 
 router = APIRouter(prefix="/movement-groups", tags=["Movement Groups"])
 
@@ -16,26 +15,22 @@ async def get_movement_group_service(db: AsyncSession = Depends(get_db)):
 
 @router.post("/", response_model=MovementGroupResponse, status_code=status.HTTP_201_CREATED)
 async def create_movement_group(
-    in_data: dict, 
+    in_data: MovementGroupCreate,
     service: MovementGroupService = Depends(get_movement_group_service)
 ):
-    """Create a new movement group."""
-    return await service.create(in_data=in_data)
+    return await service.create(in_data=in_data.model_dump())
 
 
-@router.get("/")
+@router.get("/", response_model=List[MovementGroupResponse])
 async def list_movement_groups(skip: int = 0, limit: int = 100, service: MovementGroupService = Depends(get_movement_group_service)):
-    """List movement groups with pagination."""
-    groups, _ = await service.list(skip=skip, limit=min(limit, 100))
-    return groups
+    return await service.list(skip=skip, limit=limit)
 
 
 @router.get("/{id}", response_model=MovementGroupResponse)
 async def get_movement_group(
-    id: UUID, 
+    id: UUID,
     service: MovementGroupService = Depends(get_movement_group_service)
 ):
-    """Get movement group by ID."""
     result = await service.get_by_id(id)
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movement group not found")
@@ -44,12 +39,11 @@ async def get_movement_group(
 
 @router.patch("/{id}", response_model=MovementGroupResponse)
 async def update_movement_group(
-    id: UUID, 
-    in_data: dict, 
+    id: UUID,
+    in_data: MovementGroupUpdate,
     service: MovementGroupService = Depends(get_movement_group_service)
 ):
-    """Update movement group by ID."""
-    result = await service.update(id=id, in_data=in_data)
+    result = await service.update(id=id, in_data=in_data.model_dump(exclude_unset=True))
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movement group not found")
     return result
@@ -57,10 +51,9 @@ async def update_movement_group(
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_movement_group(
-    id: UUID, 
+    id: UUID,
     service: MovementGroupService = Depends(get_movement_group_service)
 ):
-    """Soft delete movement group."""
     if not await service.delete(id=id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movement group not found")
     return None
