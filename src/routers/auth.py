@@ -1,41 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Header
+from fastapi import APIRouter, Depends, HTTPException, status
 from uuid import UUID
-from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.session import get_db
 from src.services.auth_service import AuthService, AuthError
 from src.schemas.auth import (
     UserCreate, UserResponse, LoginRequest, TokenResponse,
 )
+from src.core.dependencies import get_token_data
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
 async def get_auth_service(db: AsyncSession = Depends(get_db)):
     return AuthService(db)
-
-
-async def get_token_data(
-    authorization: Optional[str] = Header(None),
-) -> dict:
-    if not authorization:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing authorization header",
-        )
-    scheme, _, token = authorization.partition(" ")
-    if scheme.lower() != "bearer":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authorization scheme",
-        )
-    try:
-        return AuthService.decode_token(token)
-    except AuthError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(e),
-        )
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)

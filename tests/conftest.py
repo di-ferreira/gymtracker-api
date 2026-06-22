@@ -44,7 +44,7 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
 
 @pytest_asyncio.fixture
-async def auth_headers(client: AsyncClient) -> dict:
+async def auth_client(client: AsyncClient) -> AsyncGenerator[AsyncClient, None]:
     register_data = {
         "email": "admin@test.com",
         "password": "testpass123",
@@ -62,7 +62,8 @@ async def auth_headers(client: AsyncClient) -> dict:
             "email": "admin@test.com",
             "password": "testpass123",
         })).json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
+    client.headers.update({"Authorization": f"Bearer {token}"})
+    yield client
 
 
 @pytest.fixture

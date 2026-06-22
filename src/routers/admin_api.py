@@ -6,8 +6,13 @@ from src.routers.equipment import router as equipment_router
 from src.routers.movement_groups import router as movement_group_router
 from src.routers.muscle_groups import router as muscle_group_router
 from src.database.session import get_db
+from src.core.dependencies import get_token_data
 
-admin_router = APIRouter(prefix="/catalog", tags=["Catalog Management"])
+admin_router = APIRouter(
+    prefix="/catalog",
+    tags=["Catalog Management"],
+    dependencies=[Depends(get_token_data)],
+)
 
 
 @admin_router.get(
