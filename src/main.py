@@ -11,8 +11,6 @@ from src.core.logging import setup_logging
 setup_logging()
 logger = logging.getLogger(__name__)
 
-from src.core.dependencies import bearer_scheme
-
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
@@ -29,24 +27,6 @@ app = FastAPI(
     },
     swagger_ui_parameters={"persistAuthorization": True},
 )
-
-def custom_openapi():
-    if app.openapi_schema:
-        return app.openapi_schema
-    schema = app._original_openapi()
-    schema.setdefault("components", {})["securitySchemes"] = {
-        "BearerAuth": {
-            "type": "http",
-            "scheme": "bearer",
-            "bearerFormat": "JWT",
-        }
-    }
-    app.openapi_schema = schema
-    return schema
-
-
-app._original_openapi = app.openapi
-app.openapi = custom_openapi
 
 
 # === Global Error Handlers ===
@@ -97,6 +77,12 @@ app.include_router(health_router, prefix="/api/v1/admin")
 
 from src.routers.admin_api import admin_router
 app.include_router(admin_router, prefix="/api/v1/admin", tags=["Admin"])
+
+from src.routers.admin_users import router as admin_users_router
+app.include_router(admin_users_router, prefix="/api/v1/admin", tags=["Admin - Users"])
+
+from src.routers.public_api import router as public_router
+app.include_router(public_router, prefix="/api/v1", tags=["Public Catalog"])
 
 
 # === Root ===

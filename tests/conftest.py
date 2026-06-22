@@ -44,24 +44,31 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
 
 @pytest_asyncio.fixture
-async def auth_client(client: AsyncClient) -> AsyncGenerator[AsyncClient, None]:
-    register_data = {
+async def auth_client(client: AsyncClient, db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+    from src.models.user import User
+    import bcrypt
+    from sqlalchemy import select
+
+    result = await db_session.execute(
+        select(User).filter(User.email == "admin@test.com")
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        user = User(
+            email="admin@test.com",
+            hashed_password=bcrypt.hashpw(b"testpass123", bcrypt.gensalt()).decode(),
+            name="Test Admin",
+            role="admin",
+        )
+        db_session.add(user)
+        await db_session.commit()
+        await db_session.refresh(user)
+
+    login_resp = await client.post("/api/v1/auth/login", json={
         "email": "admin@test.com",
         "password": "testpass123",
-        "name": "Test Admin",
-    }
-    resp = await client.post("/api/v1/auth/register", json=register_data)
-    if resp.status_code == 409:
-        login_resp = await client.post("/api/v1/auth/login", json={
-            "email": "admin@test.com",
-            "password": "testpass123",
-        })
-        token = login_resp.json()["access_token"]
-    else:
-        token = (await client.post("/api/v1/auth/login", json={
-            "email": "admin@test.com",
-            "password": "testpass123",
-        })).json()["access_token"]
+    })
+    token = login_resp.json()["access_token"]
     client.headers.update({"Authorization": f"Bearer {token}"})
     yield client
 

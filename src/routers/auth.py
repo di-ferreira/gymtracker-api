@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, status
 from uuid import UUID
+from fastapi import APIRouter, Depends, HTTPException, Security, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.session import get_db
 from src.services.auth_service import AuthService, AuthError
 from src.schemas.auth import (
     UserCreate, UserResponse, LoginRequest, TokenResponse,
+    UpdateProfileRequest,
 )
-from src.core.dependencies import get_token_data
+from src.core.dependencies import require_auth, get_current_user
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -41,11 +42,19 @@ async def login(
 
 @router.get("/me", response_model=UserResponse)
 async def get_me(
-    token_data: dict = Depends(get_token_data),
-    service: AuthService = Depends(get_auth_service),
+    current_user: UserResponse = Depends(get_current_user),
 ):
-    user_id = UUID(token_data["sub"])
+    return current_user
+
+
+@router.patch("/me", response_model=UserResponse)
+async def update_me(
+    in_data: UpdateProfileRequest,
+    token_data: dict = Security(require_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    service = AuthService(db)
     try:
-        return await service.get_current_user(user_id)
+        return await service.update_profile(UUID(token_data["sub"]), in_data)
     except AuthError as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

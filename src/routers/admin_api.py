@@ -6,7 +6,7 @@ from src.routers.equipment import router as equipment_router
 from src.routers.movement_groups import router as movement_group_router
 from src.routers.muscle_groups import router as muscle_group_router
 from src.database.session import get_db
-from src.core.dependencies import get_token_data
+from src.core.dependencies import require_admin
 
 admin_router = APIRouter(
     prefix="/catalog",
@@ -35,14 +35,14 @@ async def admin_health_check(db: AsyncSession = Depends(get_db)):
 
 
 admin_router.include_router(
-    exercises_router, dependencies=[Security(get_token_data)]
+    exercises_router, dependencies=[Security(require_admin)]
 )
 admin_router.include_router(
-    equipment_router, dependencies=[Security(get_token_data)]
+    equipment_router, dependencies=[Security(require_admin)]
 )
 admin_router.include_router(
-    movement_group_router, dependencies=[Security(get_token_data)]
+    movement_group_router, dependencies=[Security(require_admin)]
 )
 admin_router.include_router(
-    muscle_group_router, dependencies=[Security(get_token_data)]
+    muscle_group_router, dependencies=[Security(require_admin)]
 )

@@ -29,6 +29,10 @@ class User(Base):
         Boolean, default=True, nullable=False
     )
 
+    role: Mapped[str] = Column(
+        String(20), default="user", nullable=False
+    )
+
     created_at: Mapped[datetime] = Column(
         DateTime, server_default=func.now(), nullable=False
     )

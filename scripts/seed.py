@@ -106,6 +106,20 @@ async def seed():
 
     async with session_factory() as session:
         from sqlalchemy import select
+        from src.models.user import User
+        import bcrypt
+
+        existing_admin = await session.execute(
+            select(User).filter(User.email == "admin@gymtracker.com")
+        )
+        if not existing_admin.scalar_one_or_none():
+            admin = User(
+                email="admin@gymtracker.com",
+                hashed_password=bcrypt.hashpw(b"admin123", bcrypt.gensalt()).decode(),
+                name="Admin",
+                role="admin",
+            )
+            session.add(admin)
 
         async def _get_or_create(s_model, lookup_key, defaults):
             slug = _slugify(lookup_key)
