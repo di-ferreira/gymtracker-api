@@ -5,6 +5,7 @@ import jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import settings
 from src.repositories.user_repository import UserRepository
+from typing import List
 from src.schemas.auth import (
     UserCreate, UserResponse, TokenResponse,
     UpdateProfileRequest, AdminUpdateUserRequest,
@@ -86,6 +87,10 @@ class AuthService:
         if not user:
             raise AuthError("User not found")
         return UserResponse.model_validate(user)
+
+    async def list_users(self, skip: int = 0, limit: int = 100) -> List[UserResponse]:
+        users = await self.repository.list(skip=skip, limit=limit)
+        return [UserResponse.model_validate(u) for u in users]
 
     async def update_profile(self, user_id: UUID, data: UpdateProfileRequest) -> UserResponse:
         user = await self.repository.get_by_id(user_id)

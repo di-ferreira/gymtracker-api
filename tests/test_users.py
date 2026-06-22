@@ -129,3 +129,40 @@ class TestAdminUpdateUser:
             json={"role": "admin"},
         )
         assert resp.status_code == 404
+
+    async def test_admin_list_users(self, auth_client: AsyncClient):
+        resp = await auth_client.get("/api/v1/admin/users/")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert isinstance(data, list)
+        assert len(data) >= 1
+
+    async def test_normal_user_cannot_list_users(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
+        from src.models.user import User
+
+        result = await db_session.execute(
+            select(User).filter(User.email == "normal2@test.com")
+        )
+        user = result.scalar_one_or_none()
+        if not user:
+            user = User(
+                email="normal2@test.com",
+                hashed_password=bcrypt.hashpw(b"pass123", bcrypt.gensalt()).decode(),
+                name="Normal User 2",
+                role="user",
+            )
+            db_session.add(user)
+            await db_session.commit()
+            await db_session.refresh(user)
+
+        login_resp = await client.post("/api/v1/auth/login", json={
+            "email": "normal2@test.com",
+            "password": "pass123",
+        })
+        token = login_resp.json()["access_token"]
+        client.headers.update({"Authorization": f"Bearer {token}"})
+
+        resp = await client.get("/api/v1/admin/users/")
+        assert resp.status_code == 403
