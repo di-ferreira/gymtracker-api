@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 .env
 *.db
+media/**/*.[gif|jpg|jpeg|png|svg|mp4|webm|ogg|mp3|wav|flac|aac]
