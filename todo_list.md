@@ -66,8 +66,10 @@
 - [ ] Criar database test session com SQLite in-memory
 
 ### 13. Autenticação
-- [ ] Implementar JWT ou manter stub para dev
-- [ ] Adicionar `python-jose` ou `pyjwt` nas dependências se for usar JWT
+- [x] Implementar JWT com PyJWT + bcrypt
+- [x] Endpoints: `POST /auth/register`, `POST /auth/login`, `GET /auth/me`
+- [x] Migration `add_users_table` aplicada
+- [ ] ~~Adicionar `python-jose` ou `pyjwt`~~ (PyJWT já estava nas dependências)
 
 ---
 

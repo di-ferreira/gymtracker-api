@@ -1,0 +1,83 @@
+from uuid import UUID
+from datetime import datetime, timedelta, timezone
+import bcrypt
+import jwt
+from sqlalchemy.ext.asyncio import AsyncSession
+from src.core.config import settings
+from src.repositories.user_repository import UserRepository
+from src.schemas.auth import UserCreate, UserResponse, TokenResponse
+
+
+class AuthError(Exception):
+    pass
+
+
+class AuthService:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+        self.repository = UserRepository(session)
+
+    def _hash_password(self, password: str) -> str:
+        return bcrypt.hashpw(
+            password.encode("utf-8"), bcrypt.gensalt()
+        ).decode("utf-8")
+
+    def _verify_password(self, password: str, hashed: str) -> bool:
+        return bcrypt.checkpw(
+            password.encode("utf-8"), hashed.encode("utf-8")
+        )
+
+    def _create_token(self, user_id: UUID) -> str:
+        expire = datetime.now(timezone.utc) + timedelta(
+            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+        )
+        payload = {
+            "sub": str(user_id),
+            "exp": expire,
+        }
+        return jwt.encode(
+            payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM
+        )
+
+    @staticmethod
+    def decode_token(token: str) -> dict:
+        try:
+            payload = jwt.decode(
+                token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+            )
+            return payload
+        except jwt.PyJWTError as e:
+            raise AuthError(str(e))
+
+    async def register(self, in_data: UserCreate) -> UserResponse:
+        existing = await self.repository.get_by_email(in_data.email)
+        if existing:
+            raise AuthError("Email already registered")
+
+        hashed = self._hash_password(in_data.password)
+        user = await self.repository.create(
+            email=in_data.email,
+            hashed_password=hashed,
+            name=in_data.name,
+        )
+        return UserResponse.model_validate(user)
+
+    async def login(self, email: str, password: str) -> TokenResponse:
+        user = await self.repository.get_by_email(email)
+        if not user:
+            raise AuthError("Invalid email or password")
+
+        if not self._verify_password(password, user.hashed_password):
+            raise AuthError("Invalid email or password")
+
+        if not user.is_active:
+            raise AuthError("Account is inactive")
+
+        token = self._create_token(user.id)
+        return TokenResponse(access_token=token)
+
+    async def get_current_user(self, user_id: UUID) -> UserResponse:
+        user = await self.repository.get_by_id(user_id)
+        if not user:
+            raise AuthError("User not found")
+        return UserResponse.model_validate(user)

@@ -19,6 +19,9 @@ app = FastAPI(
     }
 )
 
+from src.routers.auth import router as auth_router
+app.include_router(auth_router, prefix="/api/v1")
+
 app.include_router(health_router, prefix="/api/v1/admin")
 
 from src.routers.admin_api import admin_router
