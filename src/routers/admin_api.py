@@ -5,6 +5,8 @@ from src.routers.exercises import router as exercises_router
 from src.routers.equipment import router as equipment_router
 from src.routers.movement_groups import router as movement_group_router
 from src.routers.muscle_groups import router as muscle_group_router
+from src.routers.alternatives import router as alternatives_router
+from src.routers.instructions import router as instructions_router
 from src.database.session import get_db
 from src.core.dependencies import require_admin
 
@@ -45,4 +47,10 @@ admin_router.include_router(
 )
 admin_router.include_router(
     muscle_group_router, dependencies=[Security(require_admin)]
+)
+admin_router.include_router(
+    alternatives_router, dependencies=[Security(require_admin)]
+)
+admin_router.include_router(
+    instructions_router, dependencies=[Security(require_admin)]
 )

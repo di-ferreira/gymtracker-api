@@ -1,112 +1,67 @@
-# GymTracker API - Todo List
+# GymTracker API — Todo List
 
-> Status: **✅ Rodando** — `uvicorn src.main:app --reload --port 8001` funciona com SQLite em dev.
-> 22 endpoints ativos em `/api/v1/admin/catalog/`, `/api/v1/admin/health`, `/`.
+## Implementado
 
----
+### Autenticação e Usuários
+- [x] Registro (`POST /api/v1/auth/register`)
+- [x] Login (`POST /api/v1/auth/login`)
+- [x] Perfil atual (`GET /api/v1/auth/me`)
+- [x] Atualizar próprio perfil (`PATCH /api/v1/auth/me`) — nome e senha
+- [x] Admin listar usuários (`GET /api/v1/admin/users/`)
+- [x] Admin atualizar usuário (`PATCH /api/v1/admin/users/{id}`) — role, nome, is_active
+- [x] Role-based access control (admin/user)
+- [x] JWT com bcrypt
 
-## ✅ Concluído
+### Catálogo Admin (`/api/v1/admin/catalog`)
+- [x] CRUD MuscleGroups
+- [x] CRUD MovementGroups
+- [x] CRUD Equipment (soft delete)
+- [x] CRUD Exercises (soft delete) — com filtros, paginação, busca
+- [x] CRUD ExerciseInstructions (aninhado sob exercises)
+- [x] CRUD ExerciseAlternatives (aninhado sob exercises)
+- [x] Gerenciamento equipment relations no Exercise
 
-### 1. Config: Suporte a SQLite (dev) / PostgreSQL (prod)
-- `aiosqlite` adicionado nas dependências
-- `src/core/config.py` lê `ENVIRONMENT` do `.env`, `database_url` property, `is_sqlite` property
-- `src/database/session.py`: engine correto por tipo de banco, `get_db()` única
-- `.env` (dev) criado: `ENVIRONMENT=development`, `DATABASE_URL=sqlite+aiosqlite:///./gymtracker.db`
+### Catálogo Público (`/api/v1/catalog`)
+- [x] Listar exercises
+- [x] Listar muscle-groups
+- [x] Listar movement-groups
+- [x] Listar equipment
 
-### 2. Modelos: Compatibilidade com SQLite
-- `PG_UUID` substituído por `Uuid` genérico do SQLAlchemy
-- `server_default="gen_random_uuid()"` substituído por `default=uuid.uuid4`
-- Enums PostgreSQL (`DifficultyLevel`, `MediaUrlType`) convertidos para Python `enum.Enum` com `sqlalchemy.Enum`
-- Forward reference em `Exercise.instructions` corrigido
-- `SoftDeleteMixin` adicionado ao modelo `Equipment`
+### Mídia
+- [x] Upload de imagens/vídeos (`POST /api/v1/admin/media/upload`)
+- [x] Deletar mídia (`DELETE /api/v1/admin/media/{folder}/{filename}`)
+- [x] Storage local (dev) com StaticFiles
+- [x] Storage S3/MinIO (prod)
 
-### 3. Schemas corrigidos
-- `BaseExerciseBase` → `ExerciseBase` em todos os schemas do `exercise.py`
-- `CatalogVersionResponse` não necessário (router `catalog.py` não importa schema)
+### Infraestrutura
+- [x] Migrations Alembic (9 tabelas + users + role)
+- [x] Seed script (admin user + 40 exercises)
+- [x] Docker Compose (PostgreSQL + MinIO prod, SQLite dev)
+- [x] Healthcheck com ping no banco
+- [x] Logging configurável
+- [x] Error handlers globais
+- [x] CORS dinâmico
 
-### 4. Repositories
-- `src/repositories/exercise_repository.py` reescrito com imports corretos, paginação, filtros, search, equipment management
+### Testes
+- [x] 57 testes de integração (auth, catalog CRUD, role-based, mídia, users, alternatives, instructions)
 
-### 5. Services
-- Todos os services corrigidos: imports de schemas corretos, métodos `list`/`list_all` padronizados
+## Pendente
 
-### 6. Routers
-- Todos os routers com imports corretos de `src.schemas.catalog` e `src.schemas.exercise`
-- `src/routers/admin.py` removido (exception handlers em router não funcionam)
-- `src/routers/catalog.py` simplificado (sem imports quebrados)
+### Funcionalidades
+- [ ] Catálogo Público — buscar exercício por ID
+- [ ] Reset de senha (esqueci minha senha)
+- [ ] Refresh token
+- [ ] Paginação unificada nos catálogos públicos
+- [ ] Endpoint de estatísticas do catálogo (`GET /api/v1/catalog/stats`)
 
-### 7. Rotas registradas em `main.py`
-- Todos os routers registrados sob `/api/v1/admin/catalog/` + health em `/api/v1/admin/health`
-- `src/api/` removido (estrutura consolidada em `src/routers/`)
+### Infraestrutura
+- [ ] CI/CD (GitHub Actions)
+- [ ] Rate limiting
+- [ ] Cache (Redis)
+- [ ] Documentação deploy production
 
-### 8. Alembic
-- `alembic.ini` configurado apontando para `src/database/migrations/env.py`
-- Migration inicial criada e aplicada (9 tabelas)
-
-### 9. Dependências
-- `aiosqlite`, `bcrypt`, `pydantic-settings` instalados
-
-### 10. Schemas duplicados
-- `src/schemas/muscle_group.py` removido (todos usam `src/schemas/catalog.py`)
-
-### 11. `src/api/` vs `src/routers/`
-- `src/api/` removido — estrutura consolidada em `src/routers/`
-
-### 14. Infraestrutura
-- `.gitignore`: `*.db`, `__pycache__`, `.env` adicionados
-
----
-
-## 🟡 Próximas tarefas
-
-### 12. Testes
-- [x] `tests/test_exercises.py` — 22 testes de integração CRUD
-- [x] `conftest.py` — fixtures assíncronas com SQLite in-memory
-- [x] `TestClient` fixture via httpx AsyncClient com ASGITransport
-- [x] Database test session com SQLite in-memory (engine por sessão)
-
-### 13. Autenticação
-- [x] Implementar JWT com PyJWT + bcrypt
-- [x] Endpoints: `POST /auth/register`, `POST /auth/login`, `GET /auth/me`
-- [x] Migration `add_users_table` aplicada
-- [ ] ~~Adicionar `python-jose` ou `pyjwt`~~ (PyJWT já estava nas dependências)
-
----
-
-## 🟢 Melhorias - Nice-to-have
-
-### 14. Infraestrutura
-- [x] Healthcheck real que testa conexão com banco (`/health` e `/admin/catalog/health`)
-- [x] Script de seed idempotente (`scripts/seed.py`) — 40 exercícios, 12 grupos musculares, 8 movimentos, 12 equipamentos
-- [x] `Dockerfile` produção (python:3.13-slim)
-- [x] `Dockerfile.dev` com hot reload (volume mount)
-- [x] `docker-compose.yml` com PostgreSQL 16 + healthcheck
-- [x] `docker-compose.dev.yml` para dev com SQLite + volume
-
-### 15. Código
-- [x] Logging configurado (`src/core/logging.py`) com nível via `LOG_LEVEL`
-- [x] Error handlers globais (app-level) para HTTPException, ValidationError, Exception
-- [x] Middleware CORS com origens dinâmicas via `CORS_ORIGINS` no config
-
-### 16. Documentação
-- [x] README.md com instruções de setup (dev/prod), variáveis de ambiente, endpoints listados
-
----
-
-## Fluxo de Setup (Dev)
-
-```bash
-# 1. Instalar dependências
-pip install -r requirements.txt
-
-# 2. Criar .env
-cp .env.example .env
-# Editar .env: ENVIRONMENT=development
-# DATABASE_URL=sqlite+aiosqlite:///./gymtracker.db
-
-# 3. Rodar migrations
-alembic upgrade head
-
-# 4. Iniciar servidor
-uvicorn src.main:app --reload --port 8001
-```
+### Melhorias
+- [ ] Validação de uniqueness com mensagens amigáveis
+- [ ] Tratar `example` deprecation warnings do Pydantic V2
+- [ ] Uniformizar respostas de erro (formato padrão)
+- [ ] Adicionar timestamps faltantes nas schemas de response

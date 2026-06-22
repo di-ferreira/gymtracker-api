@@ -1,66 +1,44 @@
-"""Schemas for exercise instructions and alternatives."""
-
-from uuid import UUID, uuid4
+from uuid import UUID
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional
 from pydantic import BaseModel, Field, ConfigDict
 
 
-class InstructionBase(BaseModel):
-    """Base fields for exercise instruction step."""
-    description: str = Field(..., min_length=1, max_length=500)  # Reasonable limit
-    
-    @classmethod
-    def model_fields_set(cls, data: dict) -> dict:
-        if "step_order" not in data:
-            data["step_order"] = len([k for k in data.keys() if k.startswith("instruction_")]) + 1
-        return data
+class InstructionCreate(BaseModel):
+    description: str = Field(..., min_length=1, max_length=500)
+    step_order: int = 0
+    image_url: Optional[str] = None
 
-
-class InstructionCreate(InstructionBase):
-    """Schema for creating instruction step."""
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra="forbid")
 
 
 class InstructionUpdate(BaseModel):
-    """Schema for updating instruction step."""
-    description: Optional[str] = Field(None)
-    image_url: Optional[str] = Field(None)
-    
-    model_config = ConfigDict(from_attributes=True, validate_assignment=True)
+    description: Optional[str] = None
+    step_order: Optional[int] = None
+    image_url: Optional[str] = None
 
 
-class InstructionResponse(InstructionBase):
-    """Response schema for instruction."""
+class InstructionResponse(BaseModel):
     id: UUID
     exercise_id: UUID
     step_order: int
+    description: str
+    image_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
-class AlternativeBase(BaseModel):
-    """Base fields for exercise alternative."""
-    # Note: The primary_key='alternative_exercise_id' is handled at DB level
-    note: Optional[str] = Field(None, max_length=1000)
-    
-    @classmethod
-    def model_fields_set(cls, data: dict) -> dict:
-        if "exercise_id" not in data and "note" in data:
-            # Default exercise_id based on context (would need to be passed explicitly)
-            pass
-        return data
-
-
 class AlternativeCreate(BaseModel):
-    """Schema for creating exercise alternative."""
-    model_config = ConfigDict(extra='forbid')  # All fields must be positional
+    alternative_exercise_id: UUID
+    reason: Optional[str] = Field(None, max_length=500)
+    note: Optional[str] = Field(None, max_length=1000)
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class AlternativeResponse(BaseModel):
-    """Response schema for alternative."""
     id: UUID
     exercise_id: UUID
     alternative_exercise_id: UUID
@@ -68,5 +46,5 @@ class AlternativeResponse(BaseModel):
     note: Optional[str] = None
     created_at: datetime
     updated_at: datetime
-    
+
     model_config = ConfigDict(from_attributes=True)
