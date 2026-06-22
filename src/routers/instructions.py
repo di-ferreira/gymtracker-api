@@ -1,10 +1,11 @@
 from uuid import UUID
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.session import get_db
 from src.services.instruction_service import InstructionService
 from src.schemas.instruction import InstructionCreate, InstructionUpdate, InstructionResponse
+from src.core.errors import not_found
 
 router = APIRouter(prefix="/exercises/{exercise_id}/instructions", tags=["Exercise Instructions"])
 
@@ -21,7 +22,7 @@ async def list_instructions(
     try:
         return await service.list_by_exercise(exercise_id)
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise not_found(str(e))
 
 
 @router.post("/", response_model=InstructionResponse, status_code=status.HTTP_201_CREATED)
@@ -33,7 +34,7 @@ async def create_instruction(
     try:
         return await service.create(exercise_id, in_data)
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise not_found(str(e))
 
 
 @router.patch("/{instruction_id}", response_model=InstructionResponse)
@@ -45,7 +46,7 @@ async def update_instruction(
 ):
     result = await service.update(instruction_id, in_data)
     if not result:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Instruction not found")
+        raise not_found("Instruction not found")
     return result
 
 
@@ -56,5 +57,5 @@ async def delete_instruction(
     service: InstructionService = Depends(get_service),
 ):
     if not await service.delete(instruction_id):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Instruction not found")
+        raise not_found("Instruction not found")
     return None

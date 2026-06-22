@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from uuid import UUID
 from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.session import get_db
 from src.services.movement_group_service import MovementGroupService
 from src.schemas.catalog import MovementGroupCreate, MovementGroupUpdate, MovementGroupResponse
+from src.core.errors import not_found
 
 router = APIRouter(prefix="/movement-groups", tags=["Movement Groups"])
 
@@ -33,7 +34,7 @@ async def get_movement_group(
 ):
     result = await service.get_by_id(id)
     if not result:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movement group not found")
+        raise not_found("Movement group not found")
     return result
 
 
@@ -45,7 +46,7 @@ async def update_movement_group(
 ):
     result = await service.update(id=id, in_data=in_data.model_dump(exclude_unset=True))
     if not result:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movement group not found")
+        raise not_found("Movement group not found")
     return result
 
 
@@ -55,5 +56,5 @@ async def delete_movement_group(
     service: MovementGroupService = Depends(get_movement_group_service)
 ):
     if not await service.delete(id=id):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movement group not found")
+        raise not_found("Movement group not found")
     return None

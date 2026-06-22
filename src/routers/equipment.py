@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from uuid import UUID
 from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.session import get_db
 from src.services.equipment_service import EquipmentService
 from src.schemas.catalog import EquipmentCreate, EquipmentUpdate, EquipmentResponse
+from src.core.errors import not_found
 
 router = APIRouter(prefix="/equipment", tags=["Equipment"])
 
@@ -27,7 +28,7 @@ async def list_equipment(skip: int = 0, limit: int = 100, service: EquipmentServ
 async def get_equipment(id: UUID, service: EquipmentService = Depends(get_equipment_service)):
     result = await service.get_by_id(id)
     if not result:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Equipment not found")
+        raise not_found("Equipment not found")
     return result
 
 
@@ -35,12 +36,12 @@ async def get_equipment(id: UUID, service: EquipmentService = Depends(get_equipm
 async def update_equipment(id: UUID, in_data: EquipmentUpdate, service: EquipmentService = Depends(get_equipment_service)):
     result = await service.update(id=id, in_data=in_data.model_dump(exclude_unset=True))
     if not result:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Equipment not found")
+        raise not_found("Equipment not found")
     return result
 
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_equipment(id: UUID, service: EquipmentService = Depends(get_equipment_service)):
     if not await service.delete(id=id):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Equipment not found")
+        raise not_found("Equipment not found")
     return None

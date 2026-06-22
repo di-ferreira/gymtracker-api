@@ -1,11 +1,12 @@
 from uuid import UUID
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, Security, status
+from fastapi import APIRouter, Depends, Security
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.session import get_db
 from src.services.auth_service import AuthService, AuthError
 from src.schemas.auth import UserResponse, AdminUpdateUserRequest
 from src.core.dependencies import require_admin
+from src.core.errors import not_found
 
 router = APIRouter(prefix="/users", tags=["Admin - Users"])
 
@@ -36,4 +37,4 @@ async def admin_update_user(
     try:
         return await service.admin_update_user(user_id, in_data)
     except AuthError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise not_found(str(e))

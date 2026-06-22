@@ -1,5 +1,5 @@
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, Security, status
+from fastapi import APIRouter, Depends, Security, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.session import get_db
 from src.services.auth_service import AuthService, AuthError
@@ -8,6 +8,7 @@ from src.schemas.auth import (
     UpdateProfileRequest,
 )
 from src.core.dependencies import require_auth, get_current_user
+from src.core.errors import conflict, unauthorized, bad_request
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -25,8 +26,8 @@ async def register(
         return await service.register(in_data)
     except AuthError as e:
         if "already registered" in str(e):
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+            raise conflict(str(e))
+        raise unauthorized(str(e))
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -37,7 +38,7 @@ async def login(
     try:
         return await service.login(in_data.email, in_data.password)
     except AuthError as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+        raise unauthorized(str(e))
 
 
 @router.get("/me", response_model=UserResponse)
@@ -57,4 +58,4 @@ async def update_me(
     try:
         return await service.update_profile(UUID(token_data["sub"]), in_data)
     except AuthError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise bad_request(str(e))

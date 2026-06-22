@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, status
 from uuid import UUID
 from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.session import get_db
 from src.services.exercise_service import ExerciseService
 from src.schemas.exercise import ExerciseCreate, ExerciseUpdate, ExerciseResponse
+from src.core.errors import not_found
 
 router = APIRouter(prefix="/exercises", tags=["Exercises"])
 
@@ -48,7 +49,7 @@ async def get_exercise(
 ):
     result = await service.get_by_id(id)
     if not result:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found")
+        raise not_found("Exercise not found")
     return result
 
 
@@ -60,7 +61,7 @@ async def update_exercise(
 ):
     result = await service.update(id=id, in_data=in_data)
     if not result:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found")
+        raise not_found("Exercise not found")
     return result
 
 
@@ -70,5 +71,5 @@ async def delete_exercise(
     service: ExerciseService = Depends(get_exercise_service)
 ):
     if not await service.delete(id=id):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found")
+        raise not_found("Exercise not found")
     return None

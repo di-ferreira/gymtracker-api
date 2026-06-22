@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from src.core.config import settings
 from src.core.logging import setup_logging
+from src.core.errors import error_response, ErrorCode
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -35,27 +36,29 @@ app = FastAPI(
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"detail": exc.detail, "status_code": exc.status_code},
-    )
+    if isinstance(exc.detail, dict) and "error" in exc.detail:
+        content = exc.detail
+    else:
+        content = error_response(exc.status_code, str(exc.detail))
+    return JSONResponse(status_code=exc.status_code, content=content)
 
 
 @app.exception_handler(ValidationError)
 async def validation_exception_handler(request: Request, exc: ValidationError):
-    return JSONResponse(
-        status_code=422,
-        content={"detail": exc.errors(), "status_code": 422},
-    )
+    messages = []
+    for e in exc.errors():
+        loc = " -> ".join(str(x) for x in e.get("loc", []))
+        msg = e.get("msg", "")
+        messages.append(f"{loc}: {msg}" if loc else msg)
+    content = error_response(422, "; ".join(messages), ErrorCode.VALIDATION_ERROR)
+    return JSONResponse(status_code=422, content=content)
 
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logger.exception("Unhandled exception: %s", exc)
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "Internal server error", "status_code": 500},
-    )
+    content = error_response(500, "Internal server error", ErrorCode.INTERNAL_ERROR)
+    return JSONResponse(status_code=500, content=content)
 
 
 # === CORS ===

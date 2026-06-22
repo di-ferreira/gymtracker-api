@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from uuid import UUID
 from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.session import get_db
 from src.services.muscle_group_service import MuscleGroupService
 from src.schemas.catalog import MuscleGroupCreate, MuscleGroupUpdate, MuscleGroupResponse
+from src.core.errors import not_found
 
 router = APIRouter(prefix="/muscle-groups", tags=["Muscle Groups"])
 
@@ -33,7 +34,7 @@ async def get_muscle_group(
 ):
     result = await service.get_muscle_group(id)
     if not result:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Muscle group not found")
+        raise not_found("Muscle group not found")
     return result
 
 
@@ -45,7 +46,7 @@ async def update_muscle_group(
 ):
     result = await service.update_muscle_group(id, in_data)
     if not result:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Muscle group not found")
+        raise not_found("Muscle group not found")
     return result
 
 
@@ -55,5 +56,5 @@ async def delete_muscle_group(
     service: MuscleGroupService = Depends(get_muscle_group_service)
 ):
     if not await service.delete_muscle_group(id):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Muscle group not found")
+        raise not_found("Muscle group not found")
     return None
