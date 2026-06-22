@@ -1,136 +1,95 @@
-"""Pytest conftest for GymTracker API - Provides test fixtures."""
-
 import pytest
+import pytest_asyncio
+from uuid import uuid4
 from typing import AsyncGenerator
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from httpx import AsyncClient, ASGITransport
+
+from src.database.base import Base
+from src.database.session import get_db
+from src.main import app
 
 
-# ==================== Database Session Fixtures ==================== #
+TEST_DATABASE_URL = "sqlite+aiosqlite://"
 
-@pytest.fixture(scope="module")
-async def async_db_session():
-    """Async database session fixture for tests (mock or real DB)."""
-    from src.database.session import engine, AsyncSessionLocal
-    
-    # For testing: use test database or mock
-    # In production tests, configure test database in environment
-    
-    db_session = AsyncSessionLocal()
-    try:
+
+@pytest_asyncio.fixture(scope="session")
+async def test_engine():
+    engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield engine
+    await engine.dispose()
+
+
+@pytest_asyncio.fixture
+async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
+    session_factory = async_sessionmaker(
+        test_engine, class_=AsyncSession, expire_on_commit=False
+    )
+    async with session_factory() as session:
+        yield session
+
+
+@pytest_asyncio.fixture
+async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+    async def override_get_db():
         yield db_session
-        await db_session.close()
-    except Exception as e:
-        db_session.rollback()
-        await db_session.close()
-        raise
+
+    app.dependency_overrides[get_db] = override_get_db
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+    app.dependency_overrides.clear()
 
 
-# ==================== Model Instances for Testing ==================== #
-
-@pytest.fixture
-async def exercise_model(async_db_session):
-    """Mock Exercise model instance for tests."""
-    from src.models.exercise import Exercise
-    from uuid import uuid4
-    
-    # Create mock instance without committing to DB in unit tests
-    return Exercise(
-        id=uuid4(),
-        name="Supino Mentado",
-        slug="supino-mentado",
-        movement_group_id=uuid4(),
-        muscle_group_id=uuid4(),
-        description="Chest exercise targeting pectoral muscles"
-    )
-
-
-@pytest.fixture
-async def equipment_model(async_db_session):
-    """Mock Equipment model instance for tests."""
-    from src.models.exercise import Equipment
-    from uuid import uuid4
-    
-    return Equipment(
-        id=uuid4(),
-        name="Dumbbell",
-        slug="dumbbell"
-    )
-
-
-@pytest.fixture
-async def muscle_group_model(async_db_session):
-    """Mock MuscleGroup model instance for tests."""
-    from src.models.exercise import MuscleGroup
-    from uuid import uuid4
-    
-    return MuscleGroup(
-        id=uuid4(),
-        name="Peitoral",
-        slug="peitoral"
-    )
-
-
-@pytest.fixture  
-async def movement_group_model(async_db_session):
-    """Mock MovementGroup model instance for tests."""
-    from src.models.exercise import MovementGroup
-    from uuid import uuid4
-    
-    return MovementGroup(
-        id=uuid4(),
-        name="Compound",
-        slug="compound"
-    )
-
-
-# ==================== API Client Fixtures ==================== #
-
-@pytest.fixture
-async def api_client(base_url: str = "http://testserver"):
-    """Async HTTP client for API testing."""
-    import httpx
-    
-    async with httpx.AsyncClient(
-        base_url=base_url,
-        follow_redirects=False
-    ) as client:
-        yield client
-
-
-# ==================== Test Utilities ==================== #
-
-@pytest.fixture
-def sample_exercise_data():
-    """Sample exercise data for tests."""
-    return {
-        "name": "Supino Mentado",
-        "description": "Chest exercise using dumbbells on an incline bench", 
-        "execution_tips": "Keep elbows at 45 degrees, breathe in on up, out on down"
+@pytest_asyncio.fixture
+async def auth_headers(client: AsyncClient) -> dict:
+    register_data = {
+        "email": "admin@test.com",
+        "password": "testpass123",
+        "name": "Test Admin",
     }
+    resp = await client.post("/api/v1/auth/register", json=register_data)
+    if resp.status_code == 409:
+        login_resp = await client.post("/api/v1/auth/login", json={
+            "email": "admin@test.com",
+            "password": "testpass123",
+        })
+        token = login_resp.json()["access_token"]
+    else:
+        token = (await client.post("/api/v1/auth/login", json={
+            "email": "admin@test.com",
+            "password": "testpass123",
+        })).json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture
-def sample_equipment():
-    """Sample equipment data for tests."""
-    return {
-        "name": "Dumbbell",
-        "category": "free-weight",
-        "description": "Adjustable or fixed weight dumbbells"
-    }
+def unique_name():
+    from uuid import uuid4
+    return uuid4().hex[:8]
 
 
 @pytest.fixture
-def sample_muscle_group():
-    """Sample muscle group data for tests."""
-    return {
-        "name": "Peitoral",
-        "order_index": 1
-    }
+def sample_muscle_group(unique_name: str):
+    return {"name": f"MG-{unique_name}", "slug": f"mg-{unique_name}", "order_index": 1}
 
 
 @pytest.fixture
-def sample_movement_group():
-    """Sample movement group data for tests."""
+def sample_movement_group(unique_name: str):
+    return {"name": f"MVG-{unique_name}", "slug": f"mvg-{unique_name}", "order_index": 0}
+
+
+@pytest.fixture
+def sample_equipment(unique_name: str):
+    return {"name": f"EQ-{unique_name}", "slug": f"eq-{unique_name}", "category": "free-weight"}
+
+
+@pytest.fixture
+def sample_exercise(unique_name: str):
     return {
-        "name": "Compound",  
-        "order_index": 0
+        "name": f"EX-{unique_name}",
+        "description": "Bench press exercise",
+        "difficulty": "Intermediate",
     }

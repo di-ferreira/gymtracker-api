@@ -60,10 +60,10 @@
 ## 🟡 Próximas tarefas
 
 ### 12. Testes
-- [ ] Completar `tests/test_exercises.py` (atualmente vazio)
-- [ ] Corrigir fixtures assíncronas em `conftest.py`
-- [ ] Adicionar `TestClient` fixture para testes de integração
-- [ ] Criar database test session com SQLite in-memory
+- [x] `tests/test_exercises.py` — 22 testes de integração CRUD
+- [x] `conftest.py` — fixtures assíncronas com SQLite in-memory
+- [x] `TestClient` fixture via httpx AsyncClient com ASGITransport
+- [x] Database test session com SQLite in-memory (engine por sessão)
 
 ### 13. Autenticação
 - [x] Implementar JWT com PyJWT + bcrypt
