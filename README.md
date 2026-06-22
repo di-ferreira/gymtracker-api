@@ -1,6 +1,6 @@
 # GymTracker API
 
-Exercise catalog API with muscle groups, movement patterns, equipment, and exercises. Built with FastAPI, SQLAlchemy, and PostgreSQL/SQLite.
+Exercise catalog API with muscle groups, movement patterns, equipment, and exercises. Role-based access control (admin/user) with JWT authentication. Built with FastAPI, SQLAlchemy, and PostgreSQL/SQLite.
 
 ## Stack
 
@@ -9,7 +9,7 @@ Exercise catalog API with muscle groups, movement patterns, equipment, and exerc
 - **Database:** PostgreSQL (prod) / SQLite (dev)
 - **Migrations:** Alembic
 - **Auth:** JWT (PyJWT) + bcrypt
-- **Tests:** pytest + pytest-asyncio + httpx
+- **Tests:** pytest + pytest-asyncio + httpx (37 tests)
 
 ## Quick Start (Dev)
 
@@ -67,17 +67,43 @@ docker compose -f docker-compose.dev.yml up --build
 | `DB_ECHO` | `false` | SQLAlchemy echo mode |
 | `DEBUG` | `false` | Debug mode |
 
+## Access Control
+
+| Role | Permissions |
+|---|---|
+| `user` (default) | Register, login, view own profile, list public catalog |
+| `admin` | Full CRUD on catalog, manage users (list, promote, deactivate) |
+
+Default admin seed: `admin@gymtracker.com` / `admin123` (created by `scripts/seed.py`).
+
 ## API Endpoints
 
-### Auth (`/api/v1/auth`)
+### Auth (`/api/v1/auth`) — any role
 
 | Method | Path | Description |
 |---|---|---|
-| POST | `/auth/register` | Create user |
+| POST | `/auth/register` | Create new user |
 | POST | `/auth/login` | Get JWT token |
-| GET | `/auth/me` | Current user (requires Bearer token) |
+| GET | `/auth/me` | Current user profile |
+| PATCH | `/auth/me` | Update own name or password (requires current_password) |
 
-### Admin Catalog (`/api/v1/admin/catalog`)
+### Admin Users (`/api/v1/admin/users`) — admin only
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/users/` | List all users (paginated: `?skip=0&limit=100`) |
+| PATCH | `/users/{id}` | Update user role/name/is_active |
+
+### Public Catalog (`/api/v1/catalog`) — any authenticated user
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/catalog/exercises/` | List exercises |
+| GET | `/catalog/muscle-groups/` | List muscle groups |
+| GET | `/catalog/movement-groups/` | List movement groups |
+| GET | `/catalog/equipment/` | List equipment |
+
+### Admin Catalog (`/api/v1/admin/catalog`) — admin only
 
 | Method | Path | Description |
 |---|---|---|
@@ -106,8 +132,8 @@ docker compose -f docker-compose.dev.yml up --build
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/api/v1/admin/health` | Health check (with DB test) |
-| GET | `/api/v1/admin/catalog/health` | Admin health check (with DB test) |
+| GET | `/api/v1/admin/health` | Root health check (with DB test) |
+| GET | `/api/v1/admin/catalog/health` | Catalog health check (with DB test) |
 
 ### Root
 
