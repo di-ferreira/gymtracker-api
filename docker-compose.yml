@@ -1,29 +1,37 @@
-version: '3.8'
+version: "3.9"
 
 services:
   db:
     image: postgres:16-alpine
-    container_name: gymtracker-db
-    restart: always
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres_password
+      POSTGRES_USER: gymtracker
+      POSTGRES_PASSWORD: gymtracker_secret
       POSTGRES_DB: gymtracker
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gymtracker"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   api:
     build: .
-    container_name: gymtracker-api
-    restart: always
+    restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres_password@db:5432/gymtracker
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql+asyncpg://gymtracker:gymtracker_secret@db:5432/gymtracker
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "alembic upgrade head && uvicorn src.main:app --host 0.0.0.0 --port 8000"
 
 volumes:
-  postgres_data:
+  pgdata:

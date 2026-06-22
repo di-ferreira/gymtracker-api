@@ -75,17 +75,18 @@
 
 ## 🟢 Melhorias - Nice-to-have
 
-### 14. Infraestrutura (restante)
-- [ ] Healthcheck real que testa conexão com banco
-- [ ] Script de seed para popular dados de teste
-- [ ] Dockerfile: copiar `requirements.txt` e ajustar instalação
-- [ ] docker-compose: adicionar volume para código em dev (hot reload)
+### 14. Infraestrutura
+- [x] Healthcheck real que testa conexão com banco (`/health` e `/admin/catalog/health`)
+- [x] Script de seed idempotente (`scripts/seed.py`) — 40 exercícios, 12 grupos musculares, 8 movimentos, 12 equipamentos
+- [x] `Dockerfile` produção (python:3.13-slim)
+- [x] `Dockerfile.dev` com hot reload (volume mount)
+- [x] `docker-compose.yml` com PostgreSQL 16 + healthcheck
+- [x] `docker-compose.dev.yml` para dev com SQLite + volume
 
-### 15. Código
+### 15. Código (pendente)
 - [ ] Logging configurado (atualmente usa `app.logger` sem config)
 - [ ] Error handlers globais (app-level) para 404, 422, 500
 - [ ] Middleware CORS com origens dinâmicas via config
-- [ ] Rate limiting (placeholder removido junto com `admin.py`)
 
 ### 16. Documentação
 - [ ] README.md com instruções de setup (dev/prod)
