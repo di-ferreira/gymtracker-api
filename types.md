@@ -12,7 +12,25 @@ type DifficultyLevel = "Beginner" | "Intermediate" | "Advanced" | "Expert";
 type MediaUrlType = "THUMBNAIL" | "IMAGE" | "GIF" | "VIDEO";
 
 type UserRole = "admin" | "user";
+
+type MediaFolder = "exercises" | "instructions";
 ```
+
+---
+
+## Error Response (uniforme)
+
+Every error returns:
+```typescript
+interface ApiError {
+  error: {
+    code: string;    // e.g. "NOT_FOUND", "CONFLICT", "VALIDATION_ERROR"
+    message: string;
+  };
+}
+```
+
+HTTP codes: 400, 401, 403, 404, 409, 413, 422, 500.
 
 ---
 
@@ -222,6 +240,8 @@ interface EquipmentUpdate {
 
 **Tabela:** `exercises`
 
+**Response** (GET /exercises/ e GET /exercises/{id}):
+
 | Campo | Tipo | Origem |
 |---|---|---|
 | `id` | `string` (uuid) | `exercises.id` |
@@ -230,46 +250,44 @@ interface EquipmentUpdate {
 | `description` | `string \| null` | `exercises.description` |
 | `execution_tips` | `string \| null` | `exercises.execution_tips` |
 | `difficulty` | `DifficultyLevel \| null` | `exercises.difficulty` |
-| `target_muscle_primary` | `string \| null` | `exercises.target_muscle_primary` |
 | `thumbnail_url` | `string \| null` | `exercises.thumbnail_url` |
 | `image_url` | `string \| null` | `exercises.image_url` |
 | `gif_url` | `string \| null` | `exercises.gif_url` |
 | `video_url` | `string \| null` | `exercises.video_url` |
 | `movement_group_id` | `string` (uuid) | FK → `movement_groups.id` |
 | `muscle_group_id` | `string` (uuid) | FK → `muscle_groups.id` |
-| `movement_group` | `MovementGroup` | Relacionamento (lazy: joined) |
-| `muscle_group` | `MuscleGroup` | Relacionamento (lazy: joined) |
-| `equipment_relations` | `ExerciseEquipment[]` | Relacionamento (lazy: selectin) |
-| `instructions` | `ExerciseInstruction[]` | Relacionamento (lazy: selectin) |
-| `alternatives` | `ExerciseAlternative[]` | Relacionamento (lazy: selectin) |
-| `deleted_at` | `string \| null` (ISO 8601) | `exercises.deleted_at` (soft delete) |
+| `muscle_group` | `MuscleGroup` | Sempre incluso (lazy: joined) |
+| `movement_group` | `MovementGroup` | Sempre incluso (lazy: joined) |
+| `equipment` | `Equipment[]` | Sempre incluso |
+| `instructions` | `ExerciseInstruction[] \| null` | `null` se `?include=` não incluir "instructions" |
+| `alternatives` | `ExerciseAlternative[] \| null` | `null` se `?include=` não incluir "alternatives" |
 | `created_at` | `string` (ISO 8601) | `exercises.created_at` |
 | `updated_at` | `string` (ISO 8601) | `exercises.updated_at` |
 
 ```typescript
-interface Exercise {
+interface ExerciseResponse {
   id: string;
   name: string;
   slug: string;
   description: string | null;
   execution_tips: string | null;
   difficulty: DifficultyLevel | null;
-  target_muscle_primary: string | null;
   thumbnail_url: string | null;
   image_url: string | null;
   gif_url: string | null;
   video_url: string | null;
   movement_group_id: string;
   muscle_group_id: string;
-  movement_group: MovementGroup;
   muscle_group: MuscleGroup;
-  equipment_relations: ExerciseEquipment[];
-  instructions: ExerciseInstruction[];
-  alternatives: ExerciseAlternative[];
-  deleted_at: string | null;
+  movement_group: MovementGroup;
+  equipment: Equipment[];
+  instructions: ExerciseInstruction[] | null;  // requires ?include=instructions
+  alternatives: ExerciseAlternative[] | null;  // requires ?include=alternatives
   created_at: string;
   updated_at: string;
 }
+
+// Listagem retorna ExerciseResponse[] (com instructions/alternatives = null por padrão)
 ```
 
 ### Create / Update payload
@@ -277,17 +295,16 @@ interface Exercise {
 ```typescript
 interface ExerciseCreate {
   name: string;
-  slug?: string;
   description?: string;
   execution_tips?: string;
   difficulty?: DifficultyLevel;
-  target_muscle_primary?: string;
   thumbnail_url?: string;
   image_url?: string;
   gif_url?: string;
   video_url?: string;
   movement_group_id: string;
   muscle_group_id: string;
+  equipment_ids?: string[];        // UUIDs dos equipamentos
 }
 
 interface ExerciseUpdate {
@@ -296,41 +313,37 @@ interface ExerciseUpdate {
   description?: string;
   execution_tips?: string;
   difficulty?: DifficultyLevel;
-  target_muscle_primary?: string;
   thumbnail_url?: string;
   image_url?: string;
   gif_url?: string;
   video_url?: string;
-  movement_group_id?: string;
-  muscle_group_id?: string;
+  equipment_ids?: string[] | null; // null = não alterar, [] = limpar
 }
 ```
 
----
+### Parâmetros de filtro (GET /exercises/)
 
-## ExerciseEquipment
-
-**Tabela:** `exercise_equipments`
-
-| Campo | Tipo | Origem |
+| Parâmetro | Tipo | Descrição |
 |---|---|---|
-| `exercise_id` | `string` (uuid) | FK → `exercises.id` (PK composta) |
-| `equipment_id` | `string` (uuid) | FK → `equipments.id` (PK composta) |
-| `usage_note` | `string \| null` | `exercise_equipments.usage_note` |
-
-```typescript
-interface ExerciseEquipment {
-  exercise_id: string;
-  equipment_id: string;
-  usage_note: string | null;
-}
-```
+| `skip` | `number` | Offset (paginacão) |
+| `limit` | `number` | Limite por página (max 100) |
+| `name` | `string` | Filtro por nome (ILike) |
+| `difficulty` | `DifficultyLevel` | Filtro exato |
+| `search` | `string` | Busca em name + slug |
+| `muscle_group_ids` | `string[]` | UUIDs |
+| `movement_group_ids` | `string[]` | UUIDs |
+| `equipment_ids` | `string[]` | UUIDs (JOIN + DISTINCT) |
+| `include` | `string` | `"instructions,alternatives"` (separados por vírgula) |
+| `order_by` | `string` | Campo de ordenacão (default: "name") |
+| `order_dir` | `string` | `"asc"` ou `"desc"` (default: "asc") |
 
 ---
 
 ## ExerciseInstruction
 
 **Tabela:** `exercise_instructions`
+
+**Rotas:** `GET/POST /exercises/{id}/instructions/`, `PATCH/DELETE /exercises/{id}/instructions/{instr_id}`
 
 | Campo | Tipo | Origem |
 |---|---|---|
@@ -352,6 +365,18 @@ interface ExerciseInstruction {
   created_at: string;
   updated_at: string;
 }
+
+interface InstructionCreate {
+  description: string;
+  step_order?: number;
+  image_url?: string;
+}
+
+interface InstructionUpdate {
+  description?: string;
+  step_order?: number;
+  image_url?: string;
+}
 ```
 
 ---
@@ -359,6 +384,8 @@ interface ExerciseInstruction {
 ## ExerciseAlternative
 
 **Tabela:** `exercise_alternatives`
+
+**Rotas:** `GET/POST /exercises/{id}/alternatives/`, `DELETE /exercises/{id}/alternatives/{alt_id}`
 
 | Campo | Tipo | Origem |
 |---|---|---|
@@ -379,6 +406,131 @@ interface ExerciseAlternative {
   note: string | null;
   created_at: string;
   updated_at: string;
+}
+
+interface AlternativeCreate {
+  alternative_exercise_id: string;
+  reason?: string;
+  note?: string;
+}
+```
+
+---
+
+## Workout
+
+**Tabela:** `workouts`
+
+**Rotas:** Autenticadas em `/api/v1/workouts/`
+
+| Campo | Tipo | Origem |
+|---|---|---|
+| `id` | `string` (uuid) | `workouts.id` |
+| `user_id` | `string` (uuid) | FK → `users.id` |
+| `name` | `string` | `workouts.name` |
+| `notes` | `string \| null` | `workouts.notes` |
+| `exercises` | `WorkoutExercise[]` | Relacionamento (lazy: selectin) |
+| `created_at` | `string` (ISO 8601) | `workouts.created_at` |
+| `updated_at` | `string` (ISO 8601) | `workouts.updated_at` |
+
+```typescript
+interface Workout {
+  id: string;
+  user_id: string;
+  name: string;
+  notes: string | null;
+  exercises: WorkoutExercise[];
+  created_at: string;
+  updated_at: string;
+}
+
+interface WorkoutCreate {
+  name: string;
+  notes?: string;
+}
+
+interface WorkoutUpdate {
+  name?: string;
+  notes?: string;
+}
+```
+
+---
+
+## WorkoutExercise
+
+**Tabela:** `workout_exercises`
+
+| Campo | Tipo | Origem |
+|---|---|---|
+| `id` | `string` (uuid) | `workout_exercises.id` |
+| `workout_id` | `string` (uuid) | FK → `workouts.id` |
+| `exercise_id` | `string` (uuid) | FK → `exercises.id` |
+| `exercise` | `ExerciseResponse` | Sempre incluso (lazy: joined) |
+| `sort_order` | `number` | `workout_exercises.sort_order` |
+| `sets` | `number \| null` | `workout_exercises.sets` |
+| `reps` | `number \| null` | `workout_exercises.reps` |
+| `weight` | `number \| null` | `workout_exercises.weight` |
+| `notes` | `string \| null` | `workout_exercises.notes` |
+| `created_at` | `string` (ISO 8601) | `workout_exercises.created_at` |
+| `updated_at` | `string` (ISO 8601) | `workout_exercises.updated_at` |
+
+```typescript
+interface WorkoutExercise {
+  id: string;
+  workout_id: string;
+  exercise_id: string;
+  exercise: ExerciseResponse;
+  sort_order: number;
+  sets: number | null;
+  reps: number | null;
+  weight: number | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface WorkoutExerciseCreate {
+  exercise_id: string;
+  sort_order?: number;
+  sets?: number;
+  reps?: number;
+  weight?: number;
+  notes?: string;
+}
+
+interface WorkoutExerciseUpdate {
+  sort_order?: number;
+  sets?: number;
+  reps?: number;
+  weight?: number;
+  notes?: string;
+}
+
+interface WorkoutReorder {
+  exercise_ids: string[];  // ordered list of WorkoutExercise IDs
+}
+```
+
+---
+
+## ExerciseEquipment (join table)
+
+**Tabela:** `exercise_equipments`
+
+Usada internamente. No response do Exercise, os equipamentos aparecem como `Equipment[]` no campo `equipment`.
+
+| Campo | Tipo | Origem |
+|---|---|---|
+| `exercise_id` | `string` (uuid) | FK → `exercises.id` (PK composta) |
+| `equipment_id` | `string` (uuid) | FK → `equipments.id` (PK composta) |
+| `usage_note` | `string \| null` | `exercise_equipments.usage_note` |
+
+```typescript
+interface ExerciseEquipment {
+  exercise_id: string;
+  equipment_id: string;
+  usage_note: string | null;
 }
 ```
 
@@ -418,7 +570,25 @@ interface CatalogVersion {
 
 ---
 
+## Media
+
+```typescript
+interface MediaUploadResponse {
+  url: string;
+  path: string;       // e.g. "exercises/uuid.jpg"
+  filename: string;
+}
+
+interface MediaDeleteResponse {
+  deleted: true;
+}
+```
+
+---
+
 ## API mapeamento de rotas
+
+### Autenticação
 
 | Rota | Tipo de resposta |
 |---|---|
@@ -426,13 +596,58 @@ interface CatalogVersion {
 | `POST /api/v1/auth/login` | `TokenResponse` |
 | `GET /api/v1/auth/me` | `User` |
 | `PATCH /api/v1/auth/me` | `User` |
-| `GET /api/v1/catalog/exercises/` | `Exercise[]` |
+
+### Catálogo Público (`/api/v1/catalog`)
+
+| Rota | Tipo de resposta |
+|---|---|
+| `GET /api/v1/catalog/exercises/` | `ExerciseResponse[]` |
 | `GET /api/v1/catalog/muscle-groups/` | `MuscleGroup[]` |
 | `GET /api/v1/catalog/movement-groups/` | `MovementGroup[]` |
 | `GET /api/v1/catalog/equipment/` | `Equipment[]` |
-| `GET /api/v1/admin/users/` | `User[]` |
-| `PATCH /api/v1/admin/users/{id}` | `User` |
-| Todas as rotas `POST /api/v1/admin/catalog/*` | Entidade correspondente |
-| Todas as rotas `GET /api/v1/admin/catalog/*` | Entidade correspondente ou `Entity[]` |
-| Todas as rotas `PATCH /api/v1/admin/catalog/*` | Entidade correspondente |
-| Todas as rotas `DELETE /api/v1/admin/catalog/*` | `204 No Content` |
+
+### Admin — Catálogo (`/api/v1/admin/catalog`)
+
+| Rota | Tipo de resposta |
+|---|---|
+| `GET /exercises/` | `ExerciseResponse[]` (com filtros) |
+| `POST /exercises/` | `ExerciseResponse` |
+| `GET /exercises/{id}` | `ExerciseResponse` (com `?include=`) |
+| `PATCH /exercises/{id}` | `ExerciseResponse` |
+| `DELETE /exercises/{id}` | `204 No Content` |
+| `GET /exercises/{id}/instructions/` | `ExerciseInstruction[]` |
+| `POST /exercises/{id}/instructions/` | `ExerciseInstruction` |
+| `PATCH /exercises/{id}/instructions/{instr_id}` | `ExerciseInstruction` |
+| `DELETE /exercises/{id}/instructions/{instr_id}` | `204 No Content` |
+| `GET /exercises/{id}/alternatives/` | `ExerciseAlternative[]` |
+| `POST /exercises/{id}/alternatives/` | `ExerciseAlternative` |
+| `DELETE /exercises/{id}/alternatives/{alt_id}` | `204 No Content` |
+| CRUD `/muscle-groups/`, `/movement-groups/`, `/equipment/` | Entidade correspondente |
+
+### Admin — Usuários (`/api/v1/admin`)
+
+| Rota | Tipo de resposta |
+|---|---|
+| `GET /admin/users/` | `User[]` |
+| `PATCH /admin/users/{id}` | `User` |
+
+### Admin — Mídia (`/api/v1/admin/media`)
+
+| Rota | Tipo de resposta |
+|---|---|
+| `POST /admin/media/upload` | `MediaUploadResponse` |
+| `DELETE /admin/media/{folder}/{filename}` | `MediaDeleteResponse` |
+
+### Workouts (`/api/v1/workouts` — autenticado)
+
+| Rota | Tipo de resposta |
+|---|---|
+| `GET /workouts/` | `Workout[]` |
+| `POST /workouts/` | `Workout` |
+| `GET /workouts/{id}` | `Workout` |
+| `PATCH /workouts/{id}` | `Workout` |
+| `DELETE /workouts/{id}` | `204 No Content` |
+| `POST /workouts/{id}/exercises/` | `WorkoutExercise` |
+| `PATCH /workouts/{id}/exercises/{we_id}` | `WorkoutExercise` |
+| `DELETE /workouts/{id}/exercises/{we_id}` | `204 No Content` |
+| `PUT /workouts/{id}/exercises/reorder` | `{ status: "ok" }` |
