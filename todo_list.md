@@ -54,8 +54,14 @@
 - [x] Isolamento entre usuários (usuário A não vê treinos do usuário B)
 - [x] Migração Alembic para tabelas `workouts` e `workout_exercises`
 
+### Melhorias
+- [x] `?include=instructions,alternatives` em GET /exercises/{id} e GET /exercises/
+- [x] `UserResponse` agora inclui `updated_at`
+- [x] `file_too_large()` helper + media.py usa helper uniforme
+- [x] Handler global para `IntegrityError` → 409 Conflict com mensagem amigável
+
 ### Testes
-- [x] 74 testes de integração (auth, catalog CRUD, role-based, mídia, users, alternatives, instructions, equipment association, nested relations, workouts)
+- [x] 79 testes de integração (auth, catalog CRUD, role-based, mídia, users, alternatives, instructions, equipment association, nested relations, workouts, include, uniqueness)
 
 ## Appendix: Mapa de Relações do Schema
 
@@ -115,7 +121,6 @@
 ## Pendente
 
 ### Funcionalidades
-- [ ] `?include=instructions,alternatives` opcional em GET /exercises/{id}
 - [ ] Catálogo Público — buscar exercício por ID
 - [ ] Reset de senha (esqueci minha senha)
 - [ ] Refresh token
@@ -129,7 +134,4 @@
 - [ ] Documentação deploy production
 
 ### Melhorias
-- [ ] Validação de uniqueness com mensagens amigáveis
 - [ ] Tratar `example` deprecation warnings do Pydantic V2
-- [ ] Uniformizar respostas de erro (formato padrão)
-- [ ] Adicionar timestamps faltantes nas schemas de response

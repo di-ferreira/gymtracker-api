@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field, ConfigDict
 from src.schemas.catalog import MuscleGroupResponse, MovementGroupResponse, EquipmentResponse
+from src.schemas.instruction import InstructionResponse, AlternativeResponse
 
 
 
@@ -83,6 +84,8 @@ class ExerciseResponse(ExerciseBase):
     muscle_group: Optional[MuscleGroupResponse] = None
     movement_group: Optional[MovementGroupResponse] = None
     equipment: List[EquipmentResponse] = []
+    instructions: Optional[List[InstructionResponse]] = None
+    alternatives: Optional[List[AlternativeResponse]] = None
     created_at: datetime
     updated_at: datetime
 

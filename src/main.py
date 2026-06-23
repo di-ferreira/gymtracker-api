@@ -1,4 +1,5 @@
 import os
+import re
 import logging
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -6,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from pydantic import ValidationError
+from sqlalchemy.exc import IntegrityError
 
 from src.core.config import settings
 from src.core.logging import setup_logging
@@ -52,6 +54,21 @@ async def validation_exception_handler(request: Request, exc: ValidationError):
         messages.append(f"{loc}: {msg}" if loc else msg)
     content = error_response(422, "; ".join(messages), ErrorCode.VALIDATION_ERROR)
     return JSONResponse(status_code=422, content=content)
+
+
+@app.exception_handler(IntegrityError)
+async def integrity_error_handler(request: Request, exc: IntegrityError):
+    msg = str(exc.orig)
+    match = re.search(r"UNIQUE constraint failed:\s+(\S+)", msg)
+    if match:
+        column = match.group(1).split(".")[-1].replace("_", " ").title()
+        friendly = f"A record with this {column} already exists"
+    elif re.search(r"duplicate key", msg, re.IGNORECASE):
+        friendly = "A record with this value already exists"
+    else:
+        friendly = "Database integrity error"
+    content = error_response(409, friendly, ErrorCode.CONFLICT)
+    return JSONResponse(status_code=409, content=content)
 
 
 @app.exception_handler(Exception)

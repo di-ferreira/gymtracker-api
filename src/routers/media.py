@@ -4,7 +4,7 @@ from fastapi import APIRouter, Security, UploadFile, File
 from src.core.config import settings
 from src.storage import get_storage_backend
 from src.core.dependencies import require_admin
-from src.core.errors import bad_request, ErrorCode
+from src.core.errors import bad_request, file_too_large
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".mp4", ".webm"}
 ALLOWED_FOLDERS = {"exercises", "instructions"}
@@ -40,10 +40,7 @@ async def upload_media(
     data = await file.read()
 
     if len(data) > MAX_SIZE:
-        from src.core.errors import error_response, ErrorCode
-        from fastapi import HTTPException, status
-        content = error_response(413, f"File too large. Max size: {settings.MAX_UPLOAD_SIZE_MB}MB", ErrorCode.FILE_TOO_LARGE)
-        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=content)
+        raise file_too_large(f"File too large. Max size: {settings.MAX_UPLOAD_SIZE_MB}MB")
 
     path = f"{folder}/{stored_name}"
     backend = get_storage_backend()

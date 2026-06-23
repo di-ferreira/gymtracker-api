@@ -339,6 +339,106 @@ class TestExercises:
         assert "movement_group" in data
         assert data["movement_group"]["id"] == movement_id
 
+    async def test_get_exercise_without_include(
+        self, auth_client: AsyncClient
+    ):
+        from uuid import uuid4
+        tag = uuid4().hex[:8]
+        muscle_id, movement_id = await self._create_prerequisites(auth_client, tag)
+        created = (await auth_client.post(f"{self.prefix}/", json={
+            "name": f"EX-{tag}",
+            "movement_group_id": movement_id,
+            "muscle_group_id": muscle_id,
+        })).json()
+        resp = await auth_client.get(f"{self.prefix}/{created['id']}")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["instructions"] is None
+        assert data["alternatives"] is None
+
+    async def test_get_exercise_with_include_instructions(
+        self, auth_client: AsyncClient
+    ):
+        from uuid import uuid4
+        tag = uuid4().hex[:8]
+        muscle_id, movement_id = await self._create_prerequisites(auth_client, tag)
+        created = (await auth_client.post(f"{self.prefix}/", json={
+            "name": f"EX-{tag}",
+            "movement_group_id": movement_id,
+            "muscle_group_id": muscle_id,
+        })).json()
+
+        await auth_client.post(
+            f"{self.prefix}/{created['id']}/instructions/",
+            json={"description": "Step 1", "step_order": 0},
+        )
+
+        resp = await auth_client.get(
+            f"{self.prefix}/{created['id']}",
+            params={"include": "instructions"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert isinstance(data["instructions"], list)
+        assert len(data["instructions"]) == 1
+        assert data["instructions"][0]["description"] == "Step 1"
+        assert data["alternatives"] is None
+
+    async def test_list_exercises_with_include(
+        self, auth_client: AsyncClient
+    ):
+        from uuid import uuid4
+        tag = uuid4().hex[:8]
+        muscle_id, movement_id = await self._create_prerequisites(auth_client, tag)
+        created = (await auth_client.post(f"{self.prefix}/", json={
+            "name": f"EX-{tag}",
+            "movement_group_id": movement_id,
+            "muscle_group_id": muscle_id,
+        })).json()
+
+        await auth_client.post(
+            f"{self.prefix}/{created['id']}/instructions/",
+            json={"description": "Step 1", "step_order": 0},
+        )
+
+        resp = await auth_client.get(
+            f"{self.prefix}/",
+            params={"include": "instructions,alternatives"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        matches = [ex for ex in data if ex["id"] == created["id"]]
+        if matches:
+            assert isinstance(matches[0]["instructions"], list)
+            assert isinstance(matches[0]["alternatives"], list)
+
+    async def test_create_duplicate_slug_returns_conflict(
+        self, auth_client: AsyncClient
+    ):
+        from uuid import uuid4
+        tag = uuid4().hex[:8]
+        muscle_id, movement_id = await self._create_prerequisites(auth_client, tag)
+        await auth_client.post(f"{self.prefix}/", json={
+            "name": f"EX-{tag}",
+            "movement_group_id": movement_id,
+            "muscle_group_id": muscle_id,
+        })
+        resp = await auth_client.post(f"{self.prefix}/", json={
+            "name": f"EX-{tag}",
+            "movement_group_id": movement_id,
+            "muscle_group_id": muscle_id,
+        })
+        assert resp.status_code == 409
+        assert "error" in resp.json()
+
+    async def test_user_response_has_updated_at(
+        self, auth_client: AsyncClient
+    ):
+        resp = await auth_client.get("/api/v1/auth/me")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "updated_at" in data
+
 
 class TestRoleBasedAccess:
     prefix = "/api/v1/admin/catalog/exercises"

@@ -5,7 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from src.models.exercise import Exercise, Equipment, ExerciseEquipment
 from src.schemas.exercise import ExerciseCreate, ExerciseUpdate, ExerciseResponse, PaginationInfo
-from src.schemas.catalog import EquipmentResponse, MuscleGroupResponse, MovementGroupResponse
+from src.schemas.instruction import InstructionResponse, AlternativeResponse
+from src.schemas.catalog import EquipmentResponse
 from src.repositories.exercise_repository import ExerciseRepository
 
 
@@ -50,12 +51,22 @@ class ExerciseService:
         result.equipment = await self._load_equipment(db_obj.id)
         return result
 
-    async def get_by_id(self, id: UUID) -> Optional[ExerciseResponse]:
+    async def get_by_id(
+        self, id: UUID, include: Optional[List[str]] = None
+    ) -> Optional[ExerciseResponse]:
         db_obj = await self.repository.get_by_id(id)
         if not db_obj:
             return None
         result = ExerciseResponse.model_validate(db_obj)
         result.equipment = await self._load_equipment(id)
+        if include:
+            if "instructions" not in include:
+                result.instructions = None
+            if "alternatives" not in include:
+                result.alternatives = None
+        else:
+            result.instructions = None
+            result.alternatives = None
         return result
 
     async def update(
@@ -79,7 +90,8 @@ class ExerciseService:
         limit: int = 100,
         filters: Optional[Dict[str, Any]] = None,
         order_by: str = "name",
-        order_dir: str = "asc"
+        order_dir: str = "asc",
+        include: Optional[List[str]] = None,
     ) -> tuple[List[ExerciseResponse], PaginationInfo]:
         exercises, total = await self.repository.list_exercises(skip, limit, filters, order_by, order_dir)
         total_pages = (total + limit - 1) // limit
@@ -100,6 +112,14 @@ class ExerciseService:
         for ex in exercises:
             resp = ExerciseResponse.model_validate(ex)
             resp.equipment = equipment_map.get(ex.id, [])
+            if include:
+                if "instructions" not in include:
+                    resp.instructions = None
+                if "alternatives" not in include:
+                    resp.alternatives = None
+            else:
+                resp.instructions = None
+                resp.alternatives = None
             responses.append(resp)
 
         return responses, pagination_info

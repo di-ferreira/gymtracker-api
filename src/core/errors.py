@@ -59,3 +59,10 @@ def bad_request(detail: str = "Bad request") -> HTTPException:
         status_code=status.HTTP_400_BAD_REQUEST,
         detail=error_response(400, detail, ErrorCode.BAD_REQUEST),
     )
+
+
+def file_too_large(detail: str = "File too large") -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+        detail=error_response(413, detail, ErrorCode.FILE_TOO_LARGE),
+    )
