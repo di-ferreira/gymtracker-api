@@ -195,6 +195,150 @@ class TestExercises:
         resp = await auth_client.get(f"{self.prefix}/00000000-0000-0000-0000-000000000000")
         assert resp.status_code == 404
 
+    async def _create_equipment(self, auth_client: AsyncClient, tag: str) -> str:
+        resp = await auth_client.post("/api/v1/admin/catalog/equipment/", json={
+            "name": f"EQ-{tag}", "slug": f"eq-{tag}", "category": "free-weight",
+        })
+        return resp.json()["id"]
+
+    async def test_create_with_equipment(self, auth_client: AsyncClient):
+        from uuid import uuid4
+        tag = uuid4().hex[:8]
+        muscle_id, movement_id = await self._create_prerequisites(auth_client, tag)
+        eq_id = await self._create_equipment(auth_client, tag)
+
+        resp = await auth_client.post(f"{self.prefix}/", json={
+            "name": f"EX-{tag}",
+            "movement_group_id": movement_id,
+            "muscle_group_id": muscle_id,
+            "equipment_ids": [eq_id],
+        })
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["name"] == f"EX-{tag}"
+        assert "equipment" in data
+        assert len(data["equipment"]) == 1
+        assert data["equipment"][0]["id"] == eq_id
+
+    async def test_create_with_multiple_equipment(self, auth_client: AsyncClient):
+        from uuid import uuid4
+        tag = uuid4().hex[:8]
+        muscle_id, movement_id = await self._create_prerequisites(auth_client, tag)
+        eq1 = await self._create_equipment(auth_client, f"{tag}-1")
+        eq2 = await self._create_equipment(auth_client, f"{tag}-2")
+
+        resp = await auth_client.post(f"{self.prefix}/", json={
+            "name": f"EX-{tag}",
+            "movement_group_id": movement_id,
+            "muscle_group_id": muscle_id,
+            "equipment_ids": [eq1, eq2],
+        })
+        assert resp.status_code == 201
+        data = resp.json()
+        assert len(data["equipment"]) == 2
+        assert {e["id"] for e in data["equipment"]} == {eq1, eq2}
+
+    async def test_create_without_equipment(self, auth_client: AsyncClient):
+        from uuid import uuid4
+        tag = uuid4().hex[:8]
+        muscle_id, movement_id = await self._create_prerequisites(auth_client, tag)
+        resp = await auth_client.post(f"{self.prefix}/", json={
+            "name": f"EX-{tag}",
+            "movement_group_id": movement_id,
+            "muscle_group_id": muscle_id,
+        })
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["equipment"] == []
+
+    async def test_update_equipment(self, auth_client: AsyncClient):
+        from uuid import uuid4
+        tag = uuid4().hex[:8]
+        muscle_id, movement_id = await self._create_prerequisites(auth_client, tag)
+        eq1 = await self._create_equipment(auth_client, f"{tag}-1")
+        eq2 = await self._create_equipment(auth_client, f"{tag}-2")
+
+        created = (await auth_client.post(f"{self.prefix}/", json={
+            "name": f"EX-{tag}",
+            "movement_group_id": movement_id,
+            "muscle_group_id": muscle_id,
+            "equipment_ids": [eq1],
+        })).json()
+
+        resp = await auth_client.patch(f"{self.prefix}/{created['id']}", json={
+            "equipment_ids": [eq2],
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["equipment"]) == 1
+        assert data["equipment"][0]["id"] == eq2
+
+    async def test_update_clear_equipment(self, auth_client: AsyncClient):
+        from uuid import uuid4
+        tag = uuid4().hex[:8]
+        muscle_id, movement_id = await self._create_prerequisites(auth_client, tag)
+        eq_id = await self._create_equipment(auth_client, tag)
+
+        created = (await auth_client.post(f"{self.prefix}/", json={
+            "name": f"EX-{tag}",
+            "movement_group_id": movement_id,
+            "muscle_group_id": muscle_id,
+            "equipment_ids": [eq_id],
+        })).json()
+
+        resp = await auth_client.patch(f"{self.prefix}/{created['id']}", json={
+            "equipment_ids": [],
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["equipment"] == []
+
+    async def test_list_filter_by_equipment(self, auth_client: AsyncClient):
+        from uuid import uuid4
+        tag = uuid4().hex[:8]
+        muscle_id, movement_id = await self._create_prerequisites(auth_client, tag)
+        eq1 = await self._create_equipment(auth_client, f"{tag}-1")
+        eq2 = await self._create_equipment(auth_client, f"{tag}-2")
+
+        ex1 = (await auth_client.post(f"{self.prefix}/", json={
+            "name": f"EX-{tag}-A",
+            "movement_group_id": movement_id,
+            "muscle_group_id": muscle_id,
+            "equipment_ids": [eq1],
+        })).json()
+
+        ex2 = (await auth_client.post(f"{self.prefix}/", json={
+            "name": f"EX-{tag}-B",
+            "movement_group_id": movement_id,
+            "muscle_group_id": muscle_id,
+            "equipment_ids": [eq2],
+        })).json()
+
+        resp = await auth_client.get(f"{self.prefix}/", params={
+            "equipment_ids": [eq1],
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) >= 1
+        returned_ids = {ex["id"] for ex in data}
+        assert ex1["id"] in returned_ids
+
+    async def test_create_with_muscle_group_in_response(self, auth_client: AsyncClient):
+        from uuid import uuid4
+        tag = uuid4().hex[:8]
+        muscle_id, movement_id = await self._create_prerequisites(auth_client, tag)
+        resp = await auth_client.post(f"{self.prefix}/", json={
+            "name": f"EX-{tag}",
+            "movement_group_id": movement_id,
+            "muscle_group_id": muscle_id,
+        })
+        assert resp.status_code == 201
+        data = resp.json()
+        assert "muscle_group" in data
+        assert data["muscle_group"]["id"] == muscle_id
+        assert "movement_group" in data
+        assert data["movement_group"]["id"] == movement_id
+
 
 class TestRoleBasedAccess:
     prefix = "/api/v1/admin/catalog/exercises"

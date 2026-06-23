@@ -1,9 +1,11 @@
 from uuid import UUID
 from typing import List, Optional, Dict, Any
+from collections import defaultdict
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from src.models.exercise import Exercise
+from src.models.exercise import Exercise, Equipment, ExerciseEquipment
 from src.schemas.exercise import ExerciseCreate, ExerciseUpdate, ExerciseResponse, PaginationInfo
+from src.schemas.catalog import EquipmentResponse, MuscleGroupResponse, MovementGroupResponse
 from src.repositories.exercise_repository import ExerciseRepository
 
 
@@ -16,16 +18,45 @@ class ExerciseService:
         self.session = session
         self.repository = ExerciseRepository(session)
 
+    async def _load_equipment(self, exercise_id: UUID) -> List[EquipmentResponse]:
+        eq_query = await self.session.execute(
+            select(Equipment)
+            .join(ExerciseEquipment, ExerciseEquipment.equipment_id == Equipment.id)
+            .filter(ExerciseEquipment.exercise_id == exercise_id)
+        )
+        return [EquipmentResponse.model_validate(eq) for eq in eq_query.scalars().all()]
+
+    async def _batch_load_equipment(
+        self, exercise_ids: List[UUID]
+    ) -> Dict[UUID, List[EquipmentResponse]]:
+        if not exercise_ids:
+            return {}
+        eq_query = await self.session.execute(
+            select(Equipment, ExerciseEquipment.exercise_id)
+            .join(ExerciseEquipment, ExerciseEquipment.equipment_id == Equipment.id)
+            .filter(ExerciseEquipment.exercise_id.in_(exercise_ids))
+        )
+        result: Dict[UUID, List[EquipmentResponse]] = defaultdict(list)
+        for eq, ex_id in eq_query.all():
+            result[ex_id].append(EquipmentResponse.model_validate(eq))
+        return dict(result)
+
     async def create(
         self,
         in_data: ExerciseCreate
     ) -> ExerciseResponse:
         db_obj = await self.repository.create(in_data.model_dump())
-        return ExerciseResponse.model_validate(db_obj)
+        result = ExerciseResponse.model_validate(db_obj)
+        result.equipment = await self._load_equipment(db_obj.id)
+        return result
 
     async def get_by_id(self, id: UUID) -> Optional[ExerciseResponse]:
         db_obj = await self.repository.get_by_id(id)
-        return ExerciseResponse.model_validate(db_obj) if db_obj else None
+        if not db_obj:
+            return None
+        result = ExerciseResponse.model_validate(db_obj)
+        result.equipment = await self._load_equipment(id)
+        return result
 
     async def update(
         self,
@@ -33,7 +64,11 @@ class ExerciseService:
         in_data: ExerciseUpdate
     ) -> Optional[ExerciseResponse]:
         db_obj = await self.repository.update(id, in_data.model_dump(exclude_unset=True))
-        return ExerciseResponse.model_validate(db_obj) if db_obj else None
+        if not db_obj:
+            return None
+        result = ExerciseResponse.model_validate(db_obj)
+        result.equipment = await self._load_equipment(id)
+        return result
 
     async def delete(self, id: UUID) -> bool:
         return await self.repository.delete(id)
@@ -58,7 +93,16 @@ class ExerciseService:
             total_items=total
         )
 
-        return [ExerciseResponse.model_validate(ex) for ex in exercises], pagination_info
+        exercise_ids = [ex.id for ex in exercises]
+        equipment_map = await self._batch_load_equipment(exercise_ids)
+
+        responses = []
+        for ex in exercises:
+            resp = ExerciseResponse.model_validate(ex)
+            resp.equipment = equipment_map.get(ex.id, [])
+            responses.append(resp)
+
+        return responses, pagination_info
 
     async def search_exercises(
         self,
@@ -88,19 +132,3 @@ class ExerciseService:
             equipment_id,
             usage_note
         )
-
-    async def get_exercise_with_relations(self, id: UUID) -> Optional[Any]:
-        from src.models.exercise import Equipment, ExerciseEquipment
-        db_obj = await self.repository.get_by_id(id)
-        if not db_obj:
-            return None
-
-        eq_query = await self.session.execute(
-            select(Equipment)
-            .join(ExerciseEquipment, ExerciseEquipment.equipment_id == Equipment.id)
-            .filter(ExerciseEquipment.exercise_id == id)
-        )
-        equipment = eq_query.scalars().all()
-
-        result = ExerciseResponse.model_validate(db_obj)
-        return result

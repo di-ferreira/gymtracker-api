@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Query
 from uuid import UUID
-from typing import List
+from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.session import get_db
@@ -36,9 +36,29 @@ async def create_exercise(
 async def list_exercises(
     skip: int = 0,
     limit: int = 100,
+    name: Optional[str] = Query(None, max_length=255),
+    difficulty: Optional[str] = Query(None),
+    search: Optional[str] = Query(None, max_length=255),
+    muscle_group_ids: Optional[List[UUID]] = Query(None),
+    movement_group_ids: Optional[List[UUID]] = Query(None),
+    equipment_ids: Optional[List[UUID]] = Query(None),
+    order_by: str = Query("name"),
+    order_dir: str = Query("asc"),
     service: ExerciseService = Depends(get_exercise_service)
 ):
-    exercises, _ = await service.list_exercises(skip=skip, limit=min(limit, 100))
+    filters = {k: v for k, v in {
+        "name": name,
+        "difficulty": difficulty,
+        "search": search,
+        "muscle_group_ids": muscle_group_ids,
+        "movement_group_ids": movement_group_ids,
+        "equipment_ids": equipment_ids,
+    }.items() if v is not None}
+    exercises, _ = await service.list_exercises(
+        skip=skip, limit=min(limit, 100),
+        filters=filters if filters else None,
+        order_by=order_by, order_dir=order_dir,
+    )
     return exercises
 
 

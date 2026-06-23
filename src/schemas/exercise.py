@@ -3,6 +3,7 @@ from uuid import UUID
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field, ConfigDict
+from src.schemas.catalog import MuscleGroupResponse, MovementGroupResponse, EquipmentResponse
 
 
 
@@ -47,6 +48,7 @@ class ExerciseCreate(ExerciseBase):
     video_url: Optional[str] = Field(None)
     movement_group_id: UUID = Field(..., description="Required: Movement group ID")
     muscle_group_id: UUID = Field(..., description="Required: Muscle group ID")
+    equipment_ids: List[UUID] = Field(default_factory=list, description="Equipment IDs to associate")
 
     model_config = ConfigDict(validate_assignment=True)
 
@@ -61,6 +63,7 @@ class ExerciseUpdate(BaseModel):
     image_url: Optional[str] = None
     gif_url: Optional[str] = None
     video_url: Optional[str] = None
+    equipment_ids: Optional[List[UUID]] = Field(None, description="Replace equipment associations")
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -77,6 +80,9 @@ class ExerciseResponse(ExerciseBase):
     video_url: Optional[str] = None
     movement_group_id: UUID
     muscle_group_id: UUID
+    muscle_group: Optional[MuscleGroupResponse] = None
+    movement_group: Optional[MovementGroupResponse] = None
+    equipment: List[EquipmentResponse] = []
     created_at: datetime
     updated_at: datetime
 

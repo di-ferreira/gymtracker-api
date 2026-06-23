@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, asc, desc
-from src.models.exercise import Exercise
+from src.models.exercise import Exercise, ExerciseEquipment, Equipment
 
 
 def _slugify(name: str) -> str:
@@ -16,10 +16,17 @@ class ExerciseRepository:
         self.session = session
 
     async def create(self, in_data: dict) -> Exercise:
+        equipment_ids = in_data.pop("equipment_ids", [])
         if "slug" not in in_data or not in_data.get("slug"):
             in_data["slug"] = _slugify(in_data.get("name", ""))
         db_obj = Exercise(**in_data)
         self.session.add(db_obj)
+        await self.session.flush()
+
+        for eq_id in equipment_ids:
+            rel = ExerciseEquipment(exercise_id=db_obj.id, equipment_id=eq_id)
+            self.session.add(rel)
+
         await self.session.commit()
         await self.session.refresh(db_obj)
         return db_obj
@@ -34,8 +41,33 @@ class ExerciseRepository:
         db_obj = await self.get_by_id(id)
         if not db_obj:
             return None
+
+        equipment_ids = in_data.pop("equipment_ids", None)
         for key, value in in_data.items():
             setattr(db_obj, key, value)
+
+        if equipment_ids is not None:
+            eq_result = await self.session.execute(
+                select(ExerciseEquipment).where(ExerciseEquipment.exercise_id == id)
+            )
+            existing = {rel.equipment_id for rel in eq_result.scalars().all()}
+            new_set = set(equipment_ids)
+
+            for eq_id in existing - new_set:
+                del_result = await self.session.execute(
+                    select(ExerciseEquipment).where(
+                        ExerciseEquipment.exercise_id == id,
+                        ExerciseEquipment.equipment_id == eq_id,
+                    )
+                )
+                rel = del_result.scalar_one_or_none()
+                if rel:
+                    await self.session.delete(rel)
+
+            for eq_id in new_set - existing:
+                new_rel = ExerciseEquipment(exercise_id=id, equipment_id=eq_id)
+                self.session.add(new_rel)
+
         await self.session.commit()
         await self.session.refresh(db_obj)
         return db_obj
@@ -69,6 +101,13 @@ class ExerciseRepository:
                 query = query.where(Exercise.muscle_group_id.in_(filters["muscle_group_ids"]))
             if filters.get("movement_group_ids"):
                 query = query.where(Exercise.movement_group_id.in_(filters["movement_group_ids"]))
+            if filters.get("equipment_ids"):
+                query = (
+                    query
+                    .join(ExerciseEquipment, ExerciseEquipment.exercise_id == Exercise.id)
+                    .where(ExerciseEquipment.equipment_id.in_(filters["equipment_ids"]))
+                    .distinct()
+                )
             if filters.get("search"):
                 search_term = f"%{filters['search']}%"
                 query = query.where(
