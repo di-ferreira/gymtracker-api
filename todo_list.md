@@ -45,8 +45,17 @@
 - [x] Error handlers globais
 - [x] CORS dinâmico
 
+### Workouts (Treinos do Usuário) (`/api/v1/workouts`)
+- [x] CRUD Workouts (scoped ao usuário logado)
+- [x] Listar workouts do usuário com paginação
+- [x] Adicionar/remover/atualizar exercícios no workout
+- [x] Reordenar exercícios do workout
+- [x] WorkoutResponse inclui `exercises` com `exercise` aninhado (ExerciseResponse completo)
+- [x] Isolamento entre usuários (usuário A não vê treinos do usuário B)
+- [x] Migração Alembic para tabelas `workouts` e `workout_exercises`
+
 ### Testes
-- [x] 61 testes de integração (auth, catalog CRUD, role-based, mídia, users, alternatives, instructions, equipment association, nested relations)
+- [x] 74 testes de integração (auth, catalog CRUD, role-based, mídia, users, alternatives, instructions, equipment association, nested relations, workouts)
 
 ## Appendix: Mapa de Relações do Schema
 
@@ -90,10 +99,18 @@
 | CRUD via rotas aninhadas | ✅ |
 | `?include=alternatives` inline | ⏳ Pendente |
 
-### User ↔ Exercise (N:N — treinos/séries)
+### User ↔ Exercise (N:N — treinos/séries via WorkoutExercise)
 | Camada | Status |
 |---|---|
-| Não existe modelo Workout/WorkoutExercise | ❌ Feature futura |
+| Model `Workout` (user_id FK) | ✅ |
+| Model `WorkoutExercise` (workout_id FK + exercise_id FK) | ✅ |
+| `WorkoutCreate`/`WorkoutUpdate` | ✅ |
+| `WorkoutExerciseCreate`/`WorkoutExerciseUpdate` | ✅ |
+| `WorkoutResponse` com `exercises: List[WorkoutExerciseResponse]` | ✅ |
+| `WorkoutExerciseResponse` com `exercise: ExerciseResponse` aninhado | ✅ |
+| CRUD completo de workouts (scoped ao user) | ✅ |
+| Gerenciar exercícios no workout (add/update/remove/reorder) | ✅ |
+| Isolamento entre usuários (ownership check no service) | ✅ |
 
 ## Pendente
 
@@ -104,7 +121,6 @@
 - [ ] Refresh token
 - [ ] Paginação unificada nos catálogos públicos
 - [ ] Endpoint de estatísticas do catálogo (`GET /api/v1/catalog/stats`)
-- [ ] Modelo Workout/Sessão de treino (User ↔ Exercise via WorkoutExercise)
 
 ### Infraestrutura
 - [ ] CI/CD (GitHub Actions)

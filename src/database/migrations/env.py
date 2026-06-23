@@ -10,6 +10,7 @@ from src.models.exercise import (
     ExerciseEquipment, ExerciseInstruction, ExerciseAlternative, CatalogVersion,
 )
 from src.models.user import User
+from src.models.workout import Workout, WorkoutExercise
 from src.core.config import settings
 
 config = context.config
