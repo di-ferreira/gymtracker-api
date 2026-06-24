@@ -7,7 +7,7 @@ from src.services.exercise_service import ExerciseService
 from src.services.muscle_group_service import MuscleGroupService
 from src.services.movement_group_service import MovementGroupService
 from src.services.equipment_service import EquipmentService
-from src.schemas.exercise import ExerciseResponse
+from src.schemas.exercise import ExerciseResponse, PaginatedExerciseResponse
 from src.schemas.catalog import (
     MuscleGroupResponse, MovementGroupResponse, EquipmentResponse,
 )
@@ -30,15 +30,15 @@ async def get_equipment_service(db: AsyncSession = Depends(get_db)):
     return EquipmentService(db)
 
 
-@router.get("/exercises/", response_model=List[ExerciseResponse])
+@router.get("/exercises/", response_model=PaginatedExerciseResponse)
 async def list_exercises(
     skip: int = 0,
     limit: int = 100,
     service: ExerciseService = Depends(get_exercise_service),
     _: dict = Security(require_auth),
 ):
-    exercises, _ = await service.list_exercises(skip=skip, limit=min(limit, 100))
-    return exercises
+    exercises, pagination = await service.list_exercises(skip=skip, limit=min(limit, 100))
+    return PaginatedExerciseResponse(data=exercises, pagination=pagination)
 
 
 @router.get("/muscle-groups/", response_model=List[MuscleGroupResponse])

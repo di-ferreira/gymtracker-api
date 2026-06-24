@@ -23,6 +23,11 @@ class PaginationInfo(BaseModel):
     total_items: int = Field(description="Total items matching query")
 
 
+class PaginatedExerciseResponse(BaseModel):
+    data: List["ExerciseResponse"]
+    pagination: PaginationInfo
+
+
 class ExerciseFilter(BaseModel):
     name: Optional[str] = Field(None, max_length=255)
     slug: Optional[str] = Field(None)

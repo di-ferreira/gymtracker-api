@@ -287,7 +287,25 @@ interface ExerciseResponse {
   updated_at: string;
 }
 
-// Listagem retorna ExerciseResponse[] (com instructions/alternatives = null por padrão)
+}
+```
+
+### Paginação
+
+```typescript
+interface PaginationInfo {
+  page: number;        // página atual
+  per_page: number;    // itens por página
+  total_pages: number; // total de páginas
+  has_previous: boolean;
+  has_next: boolean;   // próxima página
+  total_items: number; // total de registros
+}
+
+interface PaginatedExerciseResponse {
+  data: ExerciseResponse[];
+  pagination: PaginationInfo;
+}
 ```
 
 ### Create / Update payload
@@ -601,7 +619,7 @@ interface MediaDeleteResponse {
 
 | Rota | Tipo de resposta |
 |---|---|
-| `GET /api/v1/catalog/exercises/` | `ExerciseResponse[]` |
+| `GET /api/v1/catalog/exercises/` | `PaginatedExerciseResponse` |
 | `GET /api/v1/catalog/muscle-groups/` | `MuscleGroup[]` |
 | `GET /api/v1/catalog/movement-groups/` | `MovementGroup[]` |
 | `GET /api/v1/catalog/equipment/` | `Equipment[]` |
@@ -610,7 +628,7 @@ interface MediaDeleteResponse {
 
 | Rota | Tipo de resposta |
 |---|---|
-| `GET /exercises/` | `ExerciseResponse[]` (com filtros) |
+| `GET /exercises/` | `PaginatedExerciseResponse` (com filtros) |
 | `POST /exercises/` | `ExerciseResponse` |
 | `GET /exercises/{id}` | `ExerciseResponse` (com `?include=`) |
 | `PATCH /exercises/{id}` | `ExerciseResponse` |

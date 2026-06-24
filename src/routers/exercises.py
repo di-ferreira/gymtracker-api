@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.session import get_db
 from src.services.exercise_service import ExerciseService
-from src.schemas.exercise import ExerciseCreate, ExerciseUpdate, ExerciseResponse
+from src.schemas.exercise import ExerciseCreate, ExerciseUpdate, ExerciseResponse, PaginatedExerciseResponse
 from src.core.errors import not_found
 
 router = APIRouter(prefix="/exercises", tags=["Exercises"])
@@ -30,7 +30,7 @@ async def create_exercise(
 
 @router.get(
     "/",
-    response_model=List[ExerciseResponse],
+    response_model=PaginatedExerciseResponse,
     summary="List exercises",
 )
 async def list_exercises(
@@ -56,13 +56,13 @@ async def list_exercises(
         "equipment_ids": equipment_ids,
     }.items() if v is not None}
     include_list = include.split(",") if include else None
-    exercises, _ = await service.list_exercises(
+    exercises, pagination = await service.list_exercises(
         skip=skip, limit=min(limit, 100),
         filters=filters if filters else None,
         order_by=order_by, order_dir=order_dir,
         include=include_list,
     )
-    return exercises
+    return PaginatedExerciseResponse(data=exercises, pagination=pagination)
 
 
 @router.get("/{id}", response_model=ExerciseResponse)

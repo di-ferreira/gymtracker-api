@@ -151,7 +151,7 @@ class TestExercises:
         })
         resp = await auth_client.get(f"{self.prefix}/")
         assert resp.status_code == 200
-        assert len(resp.json()) >= 1
+        assert len(resp.json()["data"]) >= 1
 
     async def test_get_by_id(self, auth_client: AsyncClient):
         from uuid import uuid4
@@ -318,7 +318,7 @@ class TestExercises:
             "equipment_ids": [eq1],
         })
         assert resp.status_code == 200
-        data = resp.json()
+        data = resp.json()["data"]
         assert len(data) >= 1
         returned_ids = {ex["id"] for ex in data}
         assert ex1["id"] in returned_ids
@@ -406,7 +406,7 @@ class TestExercises:
             params={"include": "instructions,alternatives"},
         )
         assert resp.status_code == 200
-        data = resp.json()
+        data = resp.json()["data"]
         matches = [ex for ex in data if ex["id"] == created["id"]]
         if matches:
             assert isinstance(matches[0]["instructions"], list)
@@ -506,4 +506,4 @@ class TestRoleBasedAccess:
     ):
         resp = await normal_client.get(f"{self.public_prefix}/exercises/")
         assert resp.status_code == 200
-        assert isinstance(resp.json(), list)
+        assert isinstance(resp.json()["data"], list)
