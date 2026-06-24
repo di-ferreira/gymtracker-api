@@ -41,6 +41,7 @@ class MuscleGroupUpdate(BaseModel):
 
 class MuscleGroupResponse(MuscleGroupBase):
     id: UUID
+    slug: str
     description: Optional[str]
     order_index: int
     created_at: datetime
@@ -75,6 +76,7 @@ class MovementGroupUpdate(BaseModel):
 
 class MovementGroupResponse(MovementGroupBase):
     id: UUID
+    slug: str
     description: Optional[str]
     order_index: int
     created_at: datetime
@@ -117,6 +119,7 @@ class EquipmentUpdate(BaseModel):
 
 class EquipmentResponse(EquipmentBase):
     id: UUID
+    slug: str
     description: Optional[str]
     category: Optional[str]
     order_index: int

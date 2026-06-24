@@ -135,3 +135,4 @@
 
 ### Melhorias
 - [ ] Tratar `example` deprecation warnings do Pydantic V2
+- [x] Adicionar campo `slug` nos responses de MuscleGroup, MovementGroup e Equipment
