@@ -33,6 +33,14 @@ class UpdateProfileRequest(BaseModel):
     new_password: Optional[str] = Field(None, min_length=8, max_length=128, example="newpass456")
 
 
+class AdminCreateUserRequest(BaseModel):
+    email: str = Field(..., max_length=255, example="user@example.com")
+    password: str = Field(..., min_length=8, max_length=128, example="securepass123")
+    name: str = Field(..., max_length=150, example="John Doe")
+    role: str = Field(default="user", pattern="^(admin|user)$")
+    is_active: bool = True
+
+
 class AdminUpdateUserRequest(BaseModel):
     name: Optional[str] = Field(None, max_length=150)
     role: Optional[str] = Field(None, pattern="^(admin|user)$")

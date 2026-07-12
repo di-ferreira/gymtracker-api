@@ -44,6 +44,9 @@ class WorkoutReorder(BaseModel):
 class WorkoutCreate(BaseModel):
     name: str = Field(..., max_length=255)
     notes: Optional[str] = None
+    user_id: Optional[UUID] = Field(
+        None, description="ID do usuário alvo (apenas admin pode definir)"
+    )
 
 
 class WorkoutUpdate(BaseModel):

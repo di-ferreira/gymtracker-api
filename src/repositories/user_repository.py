@@ -39,3 +39,17 @@ class UserRepository:
         await self.session.commit()
         await self.session.refresh(user)
         return user
+
+    async def soft_delete(self, user: User) -> User:
+        user.is_active = False
+        await self.session.commit()
+        await self.session.refresh(user)
+        return user
+
+    async def hard_delete(self, user: User) -> None:
+        await self.session.delete(user)
+        await self.session.commit()
+
+    async def count(self) -> int:
+        result = await self.session.execute(select(User))
+        return len(result.scalars().all())

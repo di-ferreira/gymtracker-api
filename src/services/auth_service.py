@@ -8,7 +8,7 @@ from src.repositories.user_repository import UserRepository
 from typing import List
 from src.schemas.auth import (
     UserCreate, UserResponse, TokenResponse,
-    UpdateProfileRequest, AdminUpdateUserRequest,
+    UpdateProfileRequest, AdminCreateUserRequest, AdminUpdateUserRequest,
 )
 
 
@@ -68,6 +68,22 @@ class AuthService:
         )
         return UserResponse.model_validate(user)
 
+    async def admin_create_user(self, in_data: AdminCreateUserRequest) -> UserResponse:
+        existing = await self.repository.get_by_email(in_data.email)
+        if existing:
+            raise AuthError("Email already registered")
+
+        hashed = self._hash_password(in_data.password)
+        user = await self.repository.create(
+            email=in_data.email,
+            hashed_password=hashed,
+            name=in_data.name,
+            role=in_data.role,
+        )
+        if not in_data.is_active:
+            user = await self.repository.update(user, is_active=False)
+        return UserResponse.model_validate(user)
+
     async def login(self, email: str, password: str) -> TokenResponse:
         user = await self.repository.get_by_email(email)
         if not user:
@@ -111,6 +127,12 @@ class AuthService:
         user = await self.repository.update(user, **kwargs)
         return UserResponse.model_validate(user)
 
+    async def get_user_by_id(self, user_id: UUID) -> UserResponse:
+        user = await self.repository.get_by_id(user_id)
+        if not user:
+            raise AuthError("User not found")
+        return UserResponse.model_validate(user)
+
     async def admin_update_user(self, user_id: UUID, data: AdminUpdateUserRequest) -> UserResponse:
         user = await self.repository.get_by_id(user_id)
         if not user:
@@ -126,3 +148,19 @@ class AuthService:
 
         user = await self.repository.update(user, **kwargs)
         return UserResponse.model_validate(user)
+
+    async def delete_own_account(self, user_id: UUID) -> None:
+        user = await self.repository.get_by_id(user_id)
+        if not user:
+            raise AuthError("User not found")
+        await self.repository.soft_delete(user)
+
+    async def admin_delete_user(self, user_id: UUID, permanent: bool = False) -> None:
+        user = await self.repository.get_by_id(user_id)
+        if not user:
+            raise AuthError("User not found")
+
+        if permanent:
+            await self.repository.hard_delete(user)
+        else:
+            await self.repository.soft_delete(user)

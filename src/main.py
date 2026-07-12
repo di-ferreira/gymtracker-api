@@ -109,6 +109,9 @@ app.include_router(public_router, prefix="/api/v1", tags=["Public Catalog"])
 from src.routers.media import router as media_router
 app.include_router(media_router, prefix="/api/v1/admin", tags=["Admin - Media"])
 
+from src.routers.users import router as users_router
+app.include_router(users_router, prefix="/api/v1", tags=["Users"])
+
 from src.routers.workouts import router as workouts_router
 app.include_router(workouts_router, prefix="/api/v1", tags=["Workouts"])
 

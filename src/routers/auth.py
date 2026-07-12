@@ -1,14 +1,11 @@
-from uuid import UUID
-from fastapi import APIRouter, Depends, Security, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database.session import get_db
 from src.services.auth_service import AuthService, AuthError
 from src.schemas.auth import (
     UserCreate, UserResponse, LoginRequest, TokenResponse,
-    UpdateProfileRequest,
 )
-from src.core.dependencies import require_auth, get_current_user
-from src.core.errors import conflict, unauthorized, bad_request
+from src.core.errors import conflict, unauthorized
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -41,21 +38,3 @@ async def login(
         raise unauthorized(str(e))
 
 
-@router.get("/me", response_model=UserResponse)
-async def get_me(
-    current_user: UserResponse = Depends(get_current_user),
-):
-    return current_user
-
-
-@router.patch("/me", response_model=UserResponse)
-async def update_me(
-    in_data: UpdateProfileRequest,
-    token_data: dict = Security(require_auth),
-    db: AsyncSession = Depends(get_db),
-):
-    service = AuthService(db)
-    try:
-        return await service.update_profile(UUID(token_data["sub"]), in_data)
-    except AuthError as e:
-        raise bad_request(str(e))

@@ -434,7 +434,7 @@ class TestExercises:
     async def test_user_response_has_updated_at(
         self, auth_client: AsyncClient
     ):
-        resp = await auth_client.get("/api/v1/auth/me")
+        resp = await auth_client.get("/api/v1/users/me")
         assert resp.status_code == 200
         data = resp.json()
         assert "updated_at" in data
